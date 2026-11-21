@@ -19,13 +19,11 @@
   <a href="#quick-start">Quick start</a>
 </p>
 
-<p>
-  <a href="https://github.com/gogoymh/git-ontology-agent"><img src="docs/assets/star.gif" width="380" alt="Star Git Ontology Agent on GitHub. A cursor clicks Star and the button changes to Starred."></a>
-</p>
-
 </div>
 
-**Git Ontology Agent** (`goa`) lets you change a task or ask a separate question while it works. Git branches track the work, and the ontology tracks what needs to be redone and how results should merge.
+**Why use Git and an ontology for an agent?**
+
+Git lets the agent keep working on one branch while it handles a separate request on another. The ontology tracks dependencies so a follow-up only reopens the work it affects. When the branches merge, it tells the agent which results to keep.
 
 ## What it is
 
