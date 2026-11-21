@@ -284,6 +284,7 @@ With nothing left to merge, there is no final answer: the second interim is the 
 ```bash
 pip install git+https://github.com/gogoymh/git-ontology-agent
 goa demo                                      # the budget example above, offline
+goa demo --mock                               # same, through simulated Anthropic + Typesafe APIs
 goa chat --llm openai --decision typesafe     # for real, with any LLM and decision model
 goa log                                       # the conversation as a git graph
 ```
@@ -303,6 +304,8 @@ Any LLM for work and answers, any decision model for judgments. Mix freely: `--l
 | `meta` | `LLAMA_API_KEY` | `Llama-4-Maverick-17B-128E-Instruct-FP8` |
 | `openrouter` | `OPENROUTER_API_KEY` | `openrouter/auto` |
 | `offline` | none | built-in demo skills and templates |
+
+No key yet? `--mock` answers every provider's real request shape locally, so the online path (`LLMSkill`, answer prompts, decision parsing) runs with no key and no network: `goa demo --mock --llm gemini --decision openai`.
 
 | Decision model `--decision` | Key | How |
 | --- | --- | --- |

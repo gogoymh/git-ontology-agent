@@ -13,3 +13,4 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m unittest discover -s tests -t . -q
       - run: python -m goa demo --scenario budget --lang en
+      - run: python -m goa demo --mock --scenario budget --lang en

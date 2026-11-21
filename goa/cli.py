@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import sys
 import tempfile
@@ -9,7 +10,7 @@ import threading
 import time
 from typing import List
 
-from . import __version__, i18n, log
+from . import __version__, i18n, log, mock
 from .agent import NAMES, Agent, Answer
 from .decision import PROVIDERS as DECISIONS
 from .llm import PROVIDERS as LLMS
@@ -49,20 +50,46 @@ def _print_answers(answers: List[Answer]) -> None:
         print(_c("2", f"          ↳ from {a.source}{rel}"))
 
 
+def _mock(args):
+    """--mock: simulated provider APIs; defaults to Anthropic + Typesafe so the online path runs."""
+    if not args.mock:
+        return contextlib.nullcontext(None)
+    if args.llm == "offline":
+        args.llm = "anthropic"
+    if args.decision == "local":
+        args.decision = "typesafe"
+    return mock.session()
+
+
 def cmd_demo(args) -> int:
     lang = i18n.template_lang(i18n.detect(args.lang))
     repo = args.repo or tempfile.mkdtemp(prefix="goa-demo-")
-    agent = Agent(repo, llm=args.llm, decision=args.decision, lang=lang)
-    print(_c("1", f"Git Ontology Agent · scenario '{args.scenario}' · repo {repo}"))
-    for i, (msg, ticks) in enumerate(SCENARIOS[args.scenario][lang], 1):
-        print(f"\n{_c('1;36', f'R{i}')} {msg}")
-        _print_answers(agent.submit(msg))
-        _print_answers(agent.run() if ticks is None else [a for _ in range(ticks) for a in agent.tick()])
-    print("\n" + _c("2", agent.repo.git("log", "--graph", "--all", "--format=%h %d %s", "-n", "40")))
+    with _mock(args) as sim:
+        agent = Agent(repo, llm=args.llm, decision=args.decision, lang=lang)
+        sim_tag = " (simulated)" if sim else ""
+        print(_c("1", f"Git Ontology Agent · scenario '{args.scenario}' · repo {repo}"))
+        if sim:
+            print(_c("2", f"llm {agent.llm.name}/{getattr(agent.llm, 'model', '')}{sim_tag} · "
+                          f"decision {agent.decision.name}{sim_tag} · no key, no network"))
+        for i, (msg, ticks) in enumerate(SCENARIOS[args.scenario][lang], 1):
+            seen = len(sim.calls) if sim else 0
+            print(f"\n{_c('1;36', f'R{i}')} {msg}")
+            _print_answers(agent.submit(msg))
+            _print_answers(agent.run() if ticks is None else [a for _ in range(ticks) for a in agent.tick()])
+            if sim:
+                print(_c("2", f"  api     {mock.summary(sim.calls[seen:])}"))
+        print("\n" + _c("2", agent.repo.git("log", "--graph", "--all", "--format=%h %d %s", "-n", "40")))
+        if sim:
+            print(_c("2", f"\n{len(sim.calls)} simulated API calls ({mock.summary(sim.calls)}), 0 network requests"))
     return 0
 
 
 def cmd_chat(args) -> int:
+    with _mock(args):
+        return _chat(args)
+
+
+def _chat(args) -> int:
     agent = Agent(args.repo, llm=args.llm, decision=args.decision, lang=args.lang)
     stop = threading.Event()
 
@@ -109,6 +136,8 @@ def main(argv=None) -> int:
                         help=f"provider[:model], one of {', '.join(DECISIONS)}")
         sp.add_argument("--lang", default="", help="answer language (default: system locale)")
         sp.add_argument("--repo", default=repo_default, help="git repo that stores the conversation")
+        sp.add_argument("--mock", action="store_true",
+                        help="simulate the provider APIs (no key, no network); defaults to anthropic + typesafe")
 
     d = sub.add_parser("demo", help="replay a spec scenario (offline by default)")
     d.add_argument("--scenario", choices=sorted(SCENARIOS), default="budget")
