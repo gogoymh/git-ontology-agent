@@ -1,14 +1,17 @@
 """Stdlib-only checks for docs/assets/banner.png (used as mission criteria; not a unittest module).
 
-    python3 tests/banner_check.py size     # PNG, width >= 2.5 x height
-    python3 tests/banner_check.py layout   # symbol on the left, only a title line on the right
+    python3 tests/banner_check.py size         # PNG, width >= 2.2 x height
+    python3 tests/banner_check.py light        # white-toned backdrop
+    python3 tests/banner_check.py layout       # art on the left, dark title block on the right
+    python3 tests/banner_check.py candidates   # >= 4 distinct, white-toned candidates
 """
 import struct
 import sys
 import zlib
 from pathlib import Path
 
-PNG = Path(__file__).resolve().parent.parent / "docs/assets/banner.png"
+ASSETS = Path(__file__).resolve().parent.parent / "docs/assets"
+PNG = ASSETS / "banner.png"
 
 
 def read_png(path):
@@ -44,23 +47,41 @@ def read_png(path):
     return w, h, rows
 
 
+def light(path):
+    w, h, rows = read_png(path)
+    edge = [v for r in rows[:h // 20] + rows[-h // 20:] for v in r] + [v for r in rows for v in r[-w // 20:]]
+    edge.sort()
+    median, dark = edge[len(edge) // 2], sum(v < 200 for v in edge) / len(edge)
+    assert median >= 225 and dark < 0.01, "%s backdrop is not white-toned (median %d, dark %.3f)" % (path.name, median, dark)
+    return w, h, rows, median
+
+
 def main(mode):
-    w, h, rows = read_png(PNG)
-    if mode == "size":
-        assert w >= 2.5 * h, "banner is %dx%d, want width >= 2.5 x height" % (w, h)
-        print("ok size %dx%d" % (w, h))
+    if mode == "candidates":
+        files = sorted((ASSETS / "candidates").glob("*.png"))
+        sigs = set()
+        for f in files:
+            w, h, rows, median = light(f)
+            assert w >= 2.2 * h, "%s is %dx%d" % (f.name, w, h)
+            sigs.add(tuple(sum(rows[y][x] for y in range(h // 8, h, h // 8)) // 64 for x in range(0, w // 2, w // 32)))
+        assert len(files) >= 4 and len(sigs) == len(files), "want >= 4 distinct candidates, got %d" % len(files)
+        print("ok candidates %s" % ", ".join(f.stem for f in files))
         return
-    bright = lambda x0, x1, y0=0, y1=h: sum(v > 140 for r in rows[y0:y1] for v in r[x0:x1])
-    symbol = bright(0, w // 4)
-    assert symbol > w * h * 0.005, "no symbol on the left (%d bright px)" % symbol
-    gap = bright(w // 4, int(w * 0.36))
-    assert gap == 0, "left symbol spills toward the right (%d bright px)" % gap
-    lit = [y for y in range(h) if any(v > 140 for v in rows[y][int(w * 0.36):])]
-    assert lit, "no title on the right"
-    band = lit[-1] - lit[0]
-    assert band < h * 0.3 and lit[0] > h * 0.25 and lit[-1] < h * 0.75, \
-        "right side should hold one centered title line (rows %d..%d)" % (lit[0], lit[-1])
-    print("ok layout symbol=%dpx title rows %d..%d" % (symbol, lit[0], lit[-1]))
+    w, h, rows, median = light(PNG)
+    if mode == "size":
+        assert w >= 2.2 * h, "banner is %dx%d, want width >= 2.2 x height" % (w, h)
+        print("ok size %dx%d" % (w, h))
+    elif mode == "light":
+        print("ok light backdrop median %d" % median)
+    else:
+        ink = lambda x0, x1: sum(abs(v - median) > 40 for r in rows for v in r[x0:x1])
+        art = ink(0, int(w * 0.4))
+        assert art > w * h * 0.02, "no art on the left (%d px)" % art
+        dark = [y for y in range(h) if sum(v < 80 for v in rows[y][int(w * 0.44):]) > 3]
+        assert dark, "no dark title on the right"
+        assert dark[0] > h * 0.2 and dark[-1] < h * 0.8 and dark[-1] - dark[0] < h * 0.5, \
+            "right side should hold one centered text block (rows %d..%d)" % (dark[0], dark[-1])
+        print("ok layout art=%dpx text rows %d..%d" % (art, dark[0], dark[-1]))
 
 
 if __name__ == "__main__":
