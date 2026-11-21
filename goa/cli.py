@@ -1,0 +1,125 @@
+"""Command line: `goa demo`, `goa chat`, `goa log`."""
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+import tempfile
+import threading
+import time
+from typing import List
+
+from . import __version__, i18n, log
+from .agent import NAMES, Agent, Answer
+from .decision import PROVIDERS as DECISIONS
+from .llm import PROVIDERS as LLMS
+
+_log = log.get("cli")
+
+SCENARIOS = {
+    # (message, ticks to run after it); None ticks = run until idle
+    "budget": {
+        "en": [("Plan my Busan business trip next week", 2), ("Oh, keep the budget under 500,000 won", 0),
+               ("By the way, what time is tomorrow's meeting?", None)],
+        "ko": [("다음 주 부산 출장 일정 짜줘", 2), ("아 예산은 50만원 이하로", 0), ("근데 내일 회의 몇 시였지?", None)],
+    },
+    "correction": {
+        "en": [("Plan my Busan business trip next week", 2), ("Actually, not Busan but Daegu", None)],
+        "ko": [("다음 주 부산 출장 일정 짜줘", 2), ("아 부산 말고 대구야", None)],
+    },
+    "cancel": {
+        "en": [("Plan my Busan business trip next week", 2), ("How far along are you?", 0),
+               ("The trip got cancelled, you can stop", None)],
+        "ko": [("다음 주 부산 출장 일정 짜줘", 2), ("어디까지 됐어?", 0), ("아 출장 취소됐대. 그만해도 돼", None)],
+    },
+}
+
+_TTY = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+
+def _c(code: str, s: str) -> str:
+    return f"\033[{code}m{s}\033[0m" if _TTY else s
+
+
+def _print_answers(answers: List[Answer]) -> None:
+    for a in answers:
+        tag = _c("1;32", "final  ") if a.kind == "final" else _c("1;33", "interim")
+        rel = f" {a.relation} {NAMES[a.relation]}" if a.relation else ""
+        print(f"  {tag} {a.text}")
+        print(_c("2", f"          ↳ from {a.source}{rel}"))
+
+
+def cmd_demo(args) -> int:
+    lang = i18n.template_lang(i18n.detect(args.lang))
+    repo = args.repo or tempfile.mkdtemp(prefix="goa-demo-")
+    agent = Agent(repo, llm=args.llm, decision=args.decision, lang=lang)
+    print(_c("1", f"Git Ontology Agent · scenario '{args.scenario}' · repo {repo}"))
+    for i, (msg, ticks) in enumerate(SCENARIOS[args.scenario][lang], 1):
+        print(f"\n{_c('1;36', f'R{i}')} {msg}")
+        _print_answers(agent.submit(msg))
+        _print_answers(agent.run() if ticks is None else [a for _ in range(ticks) for a in agent.tick()])
+    print("\n" + _c("2", agent.repo.git("log", "--graph", "--all", "--format=%h %d %s", "-n", "40")))
+    return 0
+
+
+def cmd_chat(args) -> int:
+    agent = Agent(args.repo, llm=args.llm, decision=args.decision, lang=args.lang)
+    stop = threading.Event()
+
+    def worker():
+        while not stop.is_set():
+            if agent.busy():
+                try:
+                    _print_answers(agent.tick())
+                except Exception as e:  # a provider error must not kill the loop
+                    _log.error("tick failed: %s", e)
+                    print(_c("31", f"  error: {e}"))
+                    time.sleep(2)
+            else:
+                time.sleep(0.1)
+
+    threading.Thread(target=worker, daemon=True).start()
+    print(_c("1", f"Git Ontology Agent {__version__} · llm {agent.llm.name} · decision {agent.decision.name}"))
+    print(_c("2", "Talk any time, even while it works. Ctrl-D to quit."))
+    try:
+        for line in sys.stdin:
+            _print_answers(agent.submit(line))
+    except KeyboardInterrupt:
+        pass
+    stop.set()
+    return 0
+
+
+def cmd_log(args) -> int:
+    from .gitstore import Repo
+    print(Repo(args.repo).git("log", "--graph", "--all", "--format=%h %d %s%n%b", "-n", str(args.n)))
+    return 0
+
+
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(prog="goa", description="Git Ontology Agent: talk to an agent mid-task; "
+                                "git branches and an ontology merge every request into one answer.")
+    p.add_argument("--version", action="version", version=f"goa {__version__}")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    def common(sp, repo_default=None):
+        sp.add_argument("--llm", default=os.environ.get("GOA_LLM", "offline"),
+                        help=f"provider[:model], one of {', '.join(LLMS)}")
+        sp.add_argument("--decision", default=os.environ.get("GOA_DECISION", "local"),
+                        help=f"provider[:model], one of {', '.join(DECISIONS)}")
+        sp.add_argument("--lang", default="", help="answer language (default: system locale)")
+        sp.add_argument("--repo", default=repo_default, help="git repo that stores the conversation")
+
+    d = sub.add_parser("demo", help="replay a spec scenario (offline by default)")
+    d.add_argument("--scenario", choices=sorted(SCENARIOS), default="budget")
+    common(d)
+    d.set_defaults(fn=cmd_demo)
+    c = sub.add_parser("chat", help="interactive session")
+    common(c, ".goa")
+    c.set_defaults(fn=cmd_chat)
+    lg = sub.add_parser("log", help="show the conversation as a git graph")
+    lg.add_argument("--repo", default=".goa")
+    lg.add_argument("-n", type=int, default=60)
+    lg.set_defaults(fn=cmd_log)
+    args = p.parse_args(argv)
+    return args.fn(args)
