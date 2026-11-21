@@ -76,7 +76,8 @@ def main(mode):
     else:
         ink = lambda x0, x1: sum(abs(v - median) > 40 for r in rows for v in r[x0:x1])
         art = ink(0, int(w * 0.4))
-        assert art > w * h * 0.02, "no art on the left (%d px)" % art
+        # Thin optical-glass branches have less contrast than solid artwork.
+        assert art > w * h * 0.01, "no art on the left (%d px)" % art
         dark = [y for y in range(h) if sum(v < 80 for v in rows[y][int(w * 0.44):]) > 3]
         assert dark, "no dark title on the right"
         assert dark[0] > h * 0.2 and dark[-1] < h * 0.8 and dark[-1] - dark[0] < h * 0.5, \

@@ -19,6 +19,10 @@
   <a href="#quick-start">Quick start</a>
 </p>
 
+<p>
+  <a href="https://github.com/gogoymh/git-ontology-agent"><img src="docs/assets/star.gif" width="380" alt="Star Git Ontology Agent on GitHub. A cursor clicks Star and the button changes to Starred."></a>
+</p>
+
 </div>
 
 > **git** knows when, who and what changed.<br>
