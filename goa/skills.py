@@ -265,9 +265,12 @@ class LLMSkill(Skill):
     def pending(self, state):
         p = state.get("progress.remaining")
         try:
-            return json.loads(p.value) if p else []
+            left = json.loads(p.value) if p else []
         except ValueError:
-            return []
+            left = []
+        # claims invalidated since the last step must be redone too, whatever the model said was left
+        redo = [c.label or c.id for c in state if c.status == INVALID and c.type in (FINDING, DECISION)]
+        return redo + [x for x in left if x not in redo]
 
 
 def default_skills(llm: LLM, lang: str) -> List[Skill]:
