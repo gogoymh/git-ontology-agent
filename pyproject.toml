@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "git-ontology-agent"
+version = "0.1.0"
+description = "Talk to an agent mid-task: every request is a git branch, an ontology decides what to redo and how to merge."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = []
+keywords = ["agent", "llm", "git", "ontology", "decision-model", "jev", "openai", "anthropic", "gemini"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.scripts]
+goa = "goa.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/gogoymh/git-ontology-agent"
+
+[tool.setuptools]
+packages = ["goa"]
