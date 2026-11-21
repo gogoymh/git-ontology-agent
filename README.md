@@ -1,6 +1,6 @@
 <div align="center">
 
-<img alt="Git Ontology Agent: talk to your agent mid-task. Every request is a branch; the ontology knows what to redo and how to merge." src="docs/assets/banner.svg" width="100%">
+<img alt="Git Ontology Agent" src="docs/assets/banner.png" width="100%">
 
 <p>
   <a href="https://github.com/gogoymh/git-ontology-agent/stargazers"><img src="https://img.shields.io/github/stars/gogoymh/git-ontology-agent?style=social" alt="GitHub stars"></a>
