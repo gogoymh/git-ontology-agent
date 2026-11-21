@@ -25,20 +25,13 @@
 
 </div>
 
-> **git** knows when, who and what changed.<br>
-> **The ontology** knows what depends on what, and how to merge it.
-
-**Git Ontology Agent** (`goa`) handles messages that arrive while it is still working, using git branches and merges. Talk to it mid-task and it sends an **interim answer** from the work as it stands at that moment, then a **final answer** from the merge of every request.
+**Git Ontology Agent** (`goa`) lets you change a task or ask a separate question while it works. Git branches track the work, and the ontology tracks what needs to be redone and how results should merge.
 
 ## What it is
 
-**"What happens if I say something while it's still working?" Answered with git.**
-
-Most agents handle one request at a time. When a new one arrives mid-task, they ignore it, throw away the work and start over, or mix two answers together. GOA treats each request as a branch and answers by merging.
-
-- 💬 **Interim answers.** A new message gets an answer right away, from the current state of the branch in progress. An independent request is answered as soon as it is done.
-- ✅ **Final answer.** Once every request branch is merged into `main`, the answer is written from the merge.
-- 🧾 **Provenance.** Every part of the final answer is traced, by commit, to the request it came from.
+- 💬 **Interim answers.** Get a reply from the latest commit, or a separate answer as soon as that task finishes.
+- ✅ **Final answer.** Get the completed result after the work merges into `main`.
+- 🧾 **Provenance.** Trace each result back to the request that produced it.
 
 **An example.** You ask for a trip plan, add a budget while it works, then ask something unrelated.
 
