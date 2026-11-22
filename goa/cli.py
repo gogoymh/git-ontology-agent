@@ -42,12 +42,40 @@ def _c(code: str, s: str) -> str:
     return f"\033[{code}m{s}\033[0m" if _TTY else s
 
 
+class Live:
+    """One transient status line under the conversation (terminal only), so long LLM calls never look frozen."""
+
+    def __init__(self):
+        self.on = False
+
+    def show(self, text: str) -> None:
+        if _TTY:
+            sys.stdout.write("\r\033[K" + _c("2", f"  ⋯ {text[:100]}"))
+            sys.stdout.flush()
+            self.on = True
+
+    def clear(self) -> None:
+        if self.on:
+            sys.stdout.write("\r\033[K")
+            self.on = False
+
+
+_live = Live()
+
+
 def _print_answers(answers: List[Answer]) -> None:
+    _live.clear()
     for a in answers:
         tag = _c("1;32", "final  ") if a.kind == "final" else _c("1;33", "interim")
         rel = f" {a.relation} {NAMES[a.relation]}" if a.relation else ""
         print(f"  {tag} {a.text}")
-        print(_c("2", f"          ↳ from {a.source}{rel}"))
+        print(_c("2", f"          ↳ from {a.source}{rel}"), flush=True)
+
+
+def _streaming_agent(args, repo: str, lang: str) -> Agent:
+    """Answers print the moment they exist; every work commit updates the live line."""
+    return Agent(repo, llm=args.llm, decision=args.decision, lang=lang,
+                 on_answer=lambda a: _print_answers([a]), on_step=lambda b, s: _live.show(f"{b} · {s}"))
 
 
 def _mock(args):
@@ -65,7 +93,7 @@ def cmd_demo(args) -> int:
     lang = i18n.template_lang(i18n.detect(args.lang))
     repo = args.repo or tempfile.mkdtemp(prefix="goa-demo-")
     with _mock(args) as sim:
-        agent = Agent(repo, llm=args.llm, decision=args.decision, lang=lang)
+        agent = _streaming_agent(args, repo, lang)
         sim_tag = " (simulated)" if sim else ""
         print(_c("1", f"Git Ontology Agent · scenario '{args.scenario}' · repo {repo}"))
         if sim:
@@ -73,9 +101,14 @@ def cmd_demo(args) -> int:
                           f"decision {agent.decision.name}{sim_tag} · no key, no network"))
         for i, (msg, ticks) in enumerate(SCENARIOS[args.scenario][lang], 1):
             seen = len(sim.calls) if sim else 0
-            print(f"\n{_c('1;36', f'R{i}')} {msg}")
-            _print_answers(agent.submit(msg))
-            _print_answers(agent.run() if ticks is None else [a for _ in range(ticks) for a in agent.tick()])
+            print(f"\n{_c('1;36', f'R{i}')} {msg}", flush=True)
+            _live.show("reading your message…")
+            agent.submit(msg)
+            if ticks is None:
+                agent.run()
+            for _ in range(ticks or 0):
+                agent.tick()
+            _live.clear()
             if sim:
                 print(_c("2", f"  api     {mock.summary(sim.calls[seen:])}"))
         print("\n" + _c("2", agent.repo.git("log", "--graph", "--all", "--format=%h %d %s", "-n", "40")))
@@ -90,14 +123,14 @@ def cmd_chat(args) -> int:
 
 
 def _chat(args) -> int:
-    agent = Agent(args.repo, llm=args.llm, decision=args.decision, lang=args.lang)
+    agent = _streaming_agent(args, args.repo, args.lang)
     stop = threading.Event()
 
     def worker():
         while not stop.is_set():
             if agent.busy():
                 try:
-                    _print_answers(agent.tick())
+                    agent.tick()
                 except Exception as e:  # a provider error must not kill the loop
                     _log.error("tick failed: %s", e)
                     print(_c("31", f"  error: {e}"))
@@ -110,7 +143,7 @@ def _chat(args) -> int:
     print(_c("2", "Talk any time, even while it works. Ctrl-D to quit."))
     try:
         for line in sys.stdin:
-            _print_answers(agent.submit(line))
+            agent.submit(line)
     except KeyboardInterrupt:
         pass
     stop.set()

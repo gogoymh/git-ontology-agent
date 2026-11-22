@@ -27,7 +27,9 @@ class BudgetAndIndependent(Base):
 
     def test_flow(self):
         a = self.agent
-        self.assertEqual(a.submit("Plan my Busan business trip next week"), [])
+        [ack] = a.submit("Plan my Busan business trip next week")   # answered at once: work has started
+        self.assertEqual((ack.kind, ack.relation), ("interim", ""))
+        self.assertIn("started on “Busan trip plan”", ack.text)
         self.ticks(2)                                    # KTX, then 3 hotel candidates
         [i1] = a.submit("Oh, keep the budget under 500,000 won")
         self.assertEqual((i1.kind, i1.relation), ("interim", "k1"))
@@ -41,7 +43,9 @@ class BudgetAndIndependent(Base):
         self.assertEqual(st.get("plan.train").status, "confirmed")
         self.assertEqual(st.get("hotel.candidates").status, "invalid")
 
-        self.assertEqual(a.submit("By the way, what time is tomorrow's meeting?"), [])
+        [ack3] = a.submit("By the way, what time is tomorrow's meeting?")
+        self.assertEqual((ack3.kind, ack3.relation), ("interim", "k3"))
+        self.assertIn("check “tomorrow's meeting” separately and keep working on “Busan trip plan”", ack3.text)
         out = a.run()
         i2, final = out
         self.assertEqual((i2.kind, i2.relation), ("interim", "k3"))
@@ -76,7 +80,7 @@ class BudgetAndIndependent(Base):
         self.assertEqual(sorted(c.id for c in main.of("Request")), ["req.1", "req.2", "req.3"])
         # answers are commits that say what they were written from
         answers = self.git("log", "--format=%B", "answers")
-        self.assertEqual(answers.count("Answer: interim"), 2)
+        self.assertEqual(answers.count("Answer: interim"), 4)   # 2 "started" + supplement + independent
         self.assertEqual(answers.count("Answer: final"), 1)
         self.assertRegex(answers, r"Source: main@[0-9a-f]{7}")
         self.assertIn("state.yaml", self.git("ls-tree", "--name-only", "main"))

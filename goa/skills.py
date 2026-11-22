@@ -233,8 +233,11 @@ class LLMSkill(Skill):
                              list(c.get("depends_on") or []), c.get("label", ""), at))
         return out
 
-    def title(self, text):
-        return text if len(text) <= 40 else text[:39] + "…"
+    def title(self, text, n: int = 60):
+        if len(text) <= n:
+            return text
+        cut = text[: n - 1]
+        return (cut.rsplit(" ", 1)[0] if " " in cut[n // 2:] else cut).rstrip(" ,.") + "…"
 
     def interpret(self, text, req, state, at):
         prompt = (f"Current claims:\n{state.to_yaml()}\nNew message: {text}\n"

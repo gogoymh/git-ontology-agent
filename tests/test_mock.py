@@ -30,7 +30,8 @@ def _no_network(*a, **k):
 class MockBase(unittest.TestCase):
     def setUp(self):
         self.dirs = []
-        env = {k: v for k, v in os.environ.items() if k not in mock.FAKE_KEYS}
+        env = {k: v for k, v in os.environ.items() if k not in mock.FAKE_KEYS and not k.startswith("GOA_")}
+        env["GOA_ENV_FILE"] = os.devnull   # a developer's local .env must not change the scenario
         self.env = um.patch.dict(os.environ, env, clear=True)
         self.env.start()
         self.net = um.patch("urllib.request.urlopen", _no_network)
@@ -76,7 +77,8 @@ class EveryProvider(MockBase):
     def test_relations_and_sources_match_offline(self):
         _, answers, _ = self.play("budget", "anthropic", "typesafe")
         self.assertEqual([(a.kind, a.relation) for a in answers],
-                         [("interim", "k1"), ("interim", "k3"), ("final", "")])
+                         [("interim", ""), ("interim", "k1"), ("interim", "k3"), ("interim", "k3"), ("final", "")])
+        answers = [a for a in answers if "started on" not in a.text and "separately" not in a.text]
         self.assertIn("redoing the hotel candidates, hotel and total", answers[0].text)
         self.assertIn("Still working on the Busan trip plan", answers[1].text)
         self.assertTrue(answers[0].source.startswith("req/1@"))
