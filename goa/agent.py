@@ -109,11 +109,11 @@ class Agent:
             _log.info("submit %s (%d open): %s", req, len(open_), text)
             if not open_:
                 return self._start(text, self.n, independent=False)[1]
-            target, rel, conf = self._judge(text, open_)
+            target, rel, conf, probed = self._judge(text, open_)
             if conf < self.policy["relation_confidence"]:
                 self.pending = {"text": text, "n": self.n, "target": target}
                 return [self._say("interim", {"kind": "clarify", "target": target.title}, target, req, rel, conf)]
-            return self._apply(rel, conf, text, self.n, target)
+            return self._apply(rel, conf, text, self.n, target, probed=probed.get(target.branch))
 
     def tick(self) -> List[Answer]:
         """Run one unit of work on every open request; merge the ones that are done."""
@@ -179,11 +179,13 @@ class Agent:
         self.tasks.append(task)
         return task, [ack]
 
-    def _judge(self, text: str, open_: List[Task]) -> Tuple[Task, str, float]:
+    def _judge(self, text: str, open_: List[Task]) -> Tuple[Task, str, float, Dict[str, List[Claim]]]:
         touches: List[str] = []
         hint = None
+        probed: Dict[str, List[Claim]] = {}
         for i, t in enumerate(open_):
             claims = t.skill.interpret(text, "probe", self.repo.read_state(t.branch), 0)
+            probed[t.branch] = claims
             if claims and hint is None:
                 hint = f"k{i + 1}"
             touches += [c.type for c in claims if c.type not in touches]
@@ -204,7 +206,7 @@ class Agent:
             target = open_[int(ans["target"]["choice"][1:]) - 1]
         rel, conf = ans["relation"]["choice"], ans["relation"]["confidence"]
         _log.info("relation %s (%s) confidence %.2f target %s", rel, NAMES[rel], conf, target.branch)
-        return target, rel, conf
+        return target, rel, conf, probed
 
     def _clarified(self, reply: str) -> List[Answer]:
         p, self.pending = self.pending, None
@@ -214,14 +216,17 @@ class Agent:
                                     "instructions": "What did the user answer?",
                                     "criteria": {"k1": "Apply it to the request in progress",
                                                  "k2": "Handle it as a separate request"}}})
+        probed: Optional[List[Claim]] = None
         if ans["clarify"]["choice"] == "k1":
-            touches = [c.type for c in target.skill.interpret(p["text"], "probe", self.repo.read_state(target.branch), 0)]
+            probed = target.skill.interpret(p["text"], "probe", self.repo.read_state(target.branch), 0)
+            touches = [c.type for c in probed]
             rel = "k2" if ASSUMPTION in touches else "k1"
         else:
             rel = "k3"
-        return self._apply(rel, ans["clarify"]["confidence"], p["text"], p["n"], target)
+        return self._apply(rel, ans["clarify"]["confidence"], p["text"], p["n"], target, probed=probed)
 
-    def _apply(self, rel: str, conf: float, text: str, n: int, target: Task) -> List[Answer]:
+    def _apply(self, rel: str, conf: float, text: str, n: int, target: Task,
+               probed: Optional[List[Claim]] = None) -> List[Answer]:
         req = f"req.{n}"
         relation = f"{rel} {NAMES[rel]} (confidence {conf:.2f})"
         if rel == "k3":
@@ -240,7 +245,11 @@ class Agent:
             target.status = "cancelled"
             return [self._say("interim", {"kind": "cancel", "stopped": target.title, "kept": _uniq(kept)},
                               target, req, rel, conf, source_ref=f"cancelled/{target.branch}")]
-        claims = target.skill.interpret(text, req, state, self.clock)
+        if probed is not None:
+            _log.debug("reusing %d probed claims for %s", len(probed), target.branch)
+            claims = [Claim.from_dict({**c.to_dict(), "from": req, "at": self.clock}) for c in probed]
+        else:
+            claims = target.skill.interpret(text, req, state, self.clock)
         target.requests.append(req)
         if rel == "k2" and claims:
             changed, invalid = [], []

@@ -375,7 +375,7 @@ No key yet? `--mock` answers every provider's real request shape locally, so the
 | `llm:anthropic`, `llm:xai`, ... | that LLM's key | JSON-schema judgment |
 | `local` | none | deterministic keyword + ontology heuristic |
 
-Every backend returns the same typed answer (`choice` + `confidence` + `probabilities`, or `noul` in [0, 1]); a refusal becomes confidence 0, which makes the agent ask. Keys and defaults can live in `./.env` (see [`.env.example`](.env.example)); shell variables win. Override models with `GOA_<PROVIDER>_MODEL` (`GOA_CLAUDE_CODE_MODEL`, default `sonnet`; `GOA_CODEX_MODEL`, default your Codex config; `GOA_OPENROUTER_DECISION_MODEL` for the judge) and endpoints with `TYPESAFE_URL`, `OPENAI_DECISIONS_URL`, `OPENROUTER_DECISIONS_URL`. `--mock` simulates `claude -p` and `codex exec` too, so the sign-in path runs with neither installed.
+Every backend returns the same typed answer (`choice` + `confidence` + `probabilities`, or `noul` in [0, 1]); a refusal becomes confidence 0, which makes the agent ask. Keys and defaults can live in `./.env` (see [`.env.example`](.env.example)); shell variables win. Override models with `GOA_<PROVIDER>_MODEL` (`GOA_CLAUDE_CODE_MODEL`, default `sonnet`; `GOA_CODEX_MODEL`, default your Codex config; `GOA_OPENROUTER_DECISION_MODEL` for the judge) and endpoints with `OPENAI_BASE_URL`, `TYPESAFE_URL`, `OPENAI_DECISIONS_URL`, `OPENROUTER_DECISIONS_URL`. Local loopback endpoints (`127.0.0.1`, `localhost`, `::1`) do not require an API key. `--mock` simulates `claude -p` and `codex exec` too, so the sign-in path runs with neither installed.
 
 ## Development
 

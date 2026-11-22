@@ -11,10 +11,15 @@ import json
 import os
 import re
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 from . import http, log
 
 _log = log.get("llm")
+
+
+def _is_local_url(url: str) -> bool:
+    return (urlparse(url).hostname or "").lower() in ("127.0.0.1", "localhost", "::1")
 
 
 class LLM:
@@ -76,7 +81,13 @@ class OpenAICompatible(LLM):
         if schema:
             body["response_format"] = {"type": "json_schema",
                                        "json_schema": {"name": "goa", "schema": schema}}
-        headers = {"Authorization": f"Bearer {_key(self.key_env)}", **self.extra_headers}
+        key = os.environ.get(self.key_env, "")
+        if not key:
+            if _is_local_url(self.base_url):
+                _log.info("keyless loopback request to %s (%s/%s)", self.base_url, self.name, self.model)
+            else:
+                key = _key(self.key_env)
+        headers = {**({"Authorization": f"Bearer {key}"} if key else {}), **self.extra_headers}
         return f"{self.base_url}/chat/completions", headers, body
 
     def complete(self, system, prompt, schema=None, max_tokens=1024):
@@ -199,7 +210,8 @@ def make_llm(spec: str = "offline") -> LLM:
     model = model or os.environ.get(f"GOA_{provider.upper()}_MODEL") or DEFAULT_MODELS[provider]
     _log.info("LLM provider %s model %s", provider, model)
     if provider == "openai":
-        return OpenAICompatible("openai", "https://api.openai.com/v1", "OPENAI_API_KEY", model)
+        base = os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+        return OpenAICompatible("openai", base, "OPENAI_API_KEY", model)
     if provider == "xai":
         return OpenAICompatible("xai", "https://api.x.ai/v1", "XAI_API_KEY", model)
     if provider == "meta":
