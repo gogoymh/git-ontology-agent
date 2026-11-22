@@ -63,19 +63,45 @@ class Live:
 _live = Live()
 
 
+_LABEL = 15                       # width of "Agent (interim)"; text starts at column 2 + _LABEL + 2
+_TEXT = " " * (2 + _LABEL + 2)
+
+
+def _print_user(n: int, msg: str) -> None:
+    print("\n" + _c("1;36", f"{f'User (R{n})':<{2 + _LABEL}}") + f"  {msg}", flush=True)
+
+
 def _print_answers(answers: List[Answer]) -> None:
     _live.clear()
     for a in answers:
-        tag = _c("1;32", "final  ") if a.kind == "final" else _c("1;33", "interim")
+        label = f"{f'Agent ({a.kind})':<{_LABEL}}"
+        tag = _c("1;32", label) if a.kind == "final" else _c("1;33", label)
         rel = f" {a.relation} {NAMES[a.relation]}" if a.relation else ""
-        print(f"  {tag} {a.text}")
-        print(_c("2", f"          ↳ from {a.source}{rel}"), flush=True)
+        print(f"  {tag}  {a.text}")
+        print(_c("2", f"{_TEXT}↳ from {a.source}{rel}"), flush=True)
 
 
-def _streaming_agent(args, repo: str, lang: str) -> Agent:
-    """Answers print the moment they exist; every work commit updates the live line."""
+def _streaming_agent(args, repo: str, lang: str, pause: float = 0.0) -> Agent:
+    """Answers print the moment they exist; every work commit updates the live line.
+    pause > 0 (demo only): show 'Agent is typing…' for that long before each answer."""
+    def on_answer(a: Answer) -> None:
+        if pause:
+            _live.show("Agent is typing…")
+            time.sleep(pause)
+        _print_answers([a])
     return Agent(repo, llm=args.llm, decision=args.decision, lang=lang,
-                 on_answer=lambda a: _print_answers([a]), on_step=lambda b, s: _live.show(f"{b} · {s}"))
+                 on_answer=on_answer, on_step=lambda b, s: _live.show(f"{b} · {s}"))
+
+
+def _delay(value: str) -> float:
+    """argparse type for --delay / GOA_DEMO_DELAY: seconds, >= 0."""
+    try:
+        v = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {value!r}")
+    if v < 0 or v != v:
+        raise argparse.ArgumentTypeError(f"must be >= 0, got {value}")
+    return v
 
 
 def _mock(args):
@@ -92,8 +118,11 @@ def _mock(args):
 def cmd_demo(args) -> int:
     lang = i18n.template_lang(i18n.detect(args.lang))
     repo = args.repo or tempfile.mkdtemp(prefix="goa-demo-")
+    delay = args.delay if args.delay is not None else (0.8 if sys.stdout.isatty() else 0.0)
+    _log.debug("demo delay %.2fs between turns, %.2fs before answers (%s)", delay, delay / 2,
+               "--delay/GOA_DEMO_DELAY" if args.delay is not None else "default for tty" if delay else "default, not a tty")
     with _mock(args) as sim:
-        agent = _streaming_agent(args, repo, lang)
+        agent = _streaming_agent(args, repo, lang, pause=delay / 2)
         sim_tag = " (simulated)" if sim else ""
         print(_c("1", f"Git Ontology Agent · scenario '{args.scenario}' · repo {repo}"))
         if sim:
@@ -101,7 +130,9 @@ def cmd_demo(args) -> int:
                           f"decision {agent.decision.name}{sim_tag} · no key, no network"))
         for i, (msg, ticks) in enumerate(SCENARIOS[args.scenario][lang], 1):
             seen = len(sim.calls) if sim else 0
-            print(f"\n{_c('1;36', f'R{i}')} {msg}", flush=True)
+            if delay:
+                time.sleep(delay)
+            _print_user(i, msg)
             _live.show("reading your message…")
             agent.submit(msg)
             if ticks is None:
@@ -110,7 +141,7 @@ def cmd_demo(args) -> int:
                 agent.tick()
             _live.clear()
             if sim:
-                print(_c("2", f"  api     {mock.summary(sim.calls[seen:])}"))
+                print(_c("2", f"  {'api':<{_LABEL}}  {mock.summary(sim.calls[seen:])}"))
         print("\n" + _c("2", agent.repo.git("log", "--graph", "--all", "--format=%h %d %s", "-n", "40")))
         if sim:
             print(_c("2", f"\n{len(sim.calls)} simulated API calls ({mock.summary(sim.calls)}), 0 network requests"))
@@ -175,6 +206,9 @@ def main(argv=None) -> int:
 
     d = sub.add_parser("demo", help="replay a spec scenario (offline by default)")
     d.add_argument("--scenario", choices=sorted(SCENARIOS), default="budget")
+    d.add_argument("--delay", type=_delay, default=os.environ.get("GOA_DEMO_DELAY") or None, metavar="SECONDS",
+                   help="pause between turns, half of it before each answer "
+                        "(env GOA_DEMO_DELAY; default 0.8 on a terminal, 0 otherwise)")
     common(d)
     d.set_defaults(fn=cmd_demo)
     c = sub.add_parser("chat", help="interactive session")

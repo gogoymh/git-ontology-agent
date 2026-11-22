@@ -109,7 +109,7 @@ class DemoCommand(MockBase):
         text = self.run_cli()
         self.assertIn("anthropic/claude-sonnet-5-5 (simulated)", text)
         self.assertIn("typesafe/jev-1.14 (simulated)", text)
-        self.assertIn("  api     anthropic ×", text)
+        self.assertIn("  api              anthropic ×", text)
         self.assertRegex(text, r"\d+ simulated API calls \(anthropic ×\d+ · typesafe ×\d+\), 0 network requests")
         for p in EXPECT["budget"]:
             self.assertIn(p, text)

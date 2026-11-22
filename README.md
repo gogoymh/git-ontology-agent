@@ -258,25 +258,31 @@ Real output of `goa demo` (offline, no API key). The same trip request, with the
 **Correction: the premise changes** · `goa demo --scenario correction --lang en`
 
 ```text
-R1 Plan my Busan business trip next week
-R2 Actually, not Busan but Daegu
-  interim Changed the trip city to Daegu. Dropping the KTX and hotel candidates found for
-          Busan and redoing them for Daegu.                    ↳ from req/1@17ec8ac k2 correction
-  final   Here is your plan: Tue 08:30 KTX (Seoul→Dongdaegu) → Hotel B (2 nights, ₩160,000)
-          → total ₩390,000. The trip city was changed to Daegu in your second request.
-                                                               ↳ from main@29f843d
+User (R1)          Plan my Busan business trip next week
+  Agent (interim)  Got it, I've started on “Busan trip plan”. I'll keep you posted as it goes.
+                   ↳ from req/1@3d2aaef
+
+User (R2)          Actually, not Busan but Daegu
+  Agent (interim)  Changed the trip city to Daegu. Dropping the KTX and hotel candidates found for Busan and redoing them for Daegu.
+                   ↳ from req/1@0502e86 k2 correction
+  Agent (final)    Here is your plan: Tue 08:30 KTX (Seoul→Dongdaegu) → Hotel B (2 nights, ₩160,000) → total ₩390,000. The trip city was changed to Daegu in your second request.
+                   ↳ from main@7cf5561
 ```
 
 **Progress and cancel** · `goa demo --scenario cancel --lang en`
 
 ```text
-R1 Plan my Busan business trip next week
-R2 How far along are you?
-  interim KTX is set: Tue 08:00 KTX (Seoul→Busan). Found hotel candidates: Hotel C, Hotel B,
-          Hotel A. Now working on the hotel and total.         ↳ from req/1@2efcb2b k5 progress
-R3 The trip got cancelled, you can stop
-  interim Stopped the Busan trip plan. What I found so far (KTX and hotel candidates) stays
-          in history only.                                     ↳ from cancelled/req/1@2a2cbd8 k4 cancel
+User (R1)          Plan my Busan business trip next week
+  Agent (interim)  Got it, I've started on “Busan trip plan”. I'll keep you posted as it goes.
+                   ↳ from req/1@3f1215b
+
+User (R2)          How far along are you?
+  Agent (interim)  KTX is set: Tue 08:00 KTX (Seoul→Busan). Found hotel candidates: Hotel C, Hotel B, Hotel A. Now working on the hotel and total.
+                   ↳ from req/1@323b99a k5 progress
+
+User (R3)          The trip got cancelled, you can stop
+  Agent (interim)  Stopped the Busan trip plan. What I found so far (KTX and hotel candidates) stays in history only.
+                   ↳ from cancelled/req/1@3a39837 k4 cancel
 ```
 
 With nothing left to merge, there is no final answer: the second interim is the last word, and `cancelled/req/1` keeps what was found.
@@ -287,6 +293,7 @@ With nothing left to merge, there is no final answer: the second interim is the 
 pip install git+https://github.com/gogoymh/git-ontology-agent
 goa demo                                      # the budget example above, offline
 goa demo --mock                               # same, through simulated Anthropic + Typesafe APIs
+goa demo --delay 0                            # no pauses between turns (default 0.8s on a terminal)
 cp .env.example .env                          # add a key, e.g. OPENROUTER_API_KEY
 goa chat --llm openrouter --decision openrouter   # for real, with any LLM and decision model
 goa log                                       # the conversation as a git graph

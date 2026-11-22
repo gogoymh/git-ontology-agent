@@ -128,7 +128,7 @@ class Entrypoint(unittest.TestCase):
             out = subprocess.run([sys.executable, "-m", "goa.cli", "demo", "--repo", os.path.join(d, "r")],
                                  cwd=ROOT, env=env, capture_output=True, text=True, timeout=60)
         self.assertEqual(out.returncode, 0, out.stderr)
-        self.assertRegex(out.stdout, re.compile(r"R1 .*\n", re.S))
+        self.assertRegex(out.stdout, re.compile(r"User \(R1\) .*\n", re.S))
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock as um
 
@@ -97,17 +98,89 @@ class LiveProgress(Base):
         self.assertTrue(out.getvalue().endswith("\r\033[K"))
 
 
+def _demo(*argv, **extra):
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GOA_")}
+    env.update(GOA_ENV_FILE=os.devnull, NO_COLOR="1", **extra)
+    return subprocess.run([sys.executable, "-m", "goa", "demo", *argv], cwd=ROOT, env=env,
+                          capture_output=True, text=True, timeout=60)
+
+
+def _assert_user_then_interim(test, out, n):
+    lines = out.splitlines()
+    rows = [i for i, l in enumerate(lines) if l.startswith("User (R")]
+    test.assertEqual(len(rows), n, out)
+    for i in rows:
+        test.assertTrue(lines[i + 1].startswith("  Agent (interim)  "), f"no interim right after {lines[i]!r}")
+    return lines, rows
+
+
 class Demo(unittest.TestCase):
     def test_every_request_line_is_followed_by_an_interim(self):
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GOA_")}
-        env.update(GOA_ENV_FILE=os.devnull, NO_COLOR="1")
-        out = subprocess.run([sys.executable, "-m", "goa", "demo", "--lang", "en"], cwd=ROOT, env=env,
-                             capture_output=True, text=True, timeout=60).stdout
-        lines = out.splitlines()
-        rows = [i for i, l in enumerate(lines) if l[:1] == "R" and l[1:2].isdigit()]
-        self.assertEqual(len(rows), 3, out)
-        for i in rows:
-            self.assertTrue(lines[i + 1].startswith("  interim "), f"no interim right after {lines[i]!r}")
+        out = _demo("--lang", "en").stdout
+        lines, rows = _assert_user_then_interim(self, out, 3)
+        col = len("  Agent (interim)  ")
+        for i, l in enumerate(lines):
+            if l.startswith(("User (R", "  Agent (")):
+                self.assertTrue(l[col - 2:col] == "  " and l[col] != " ", f"text not at column {col}: {l!r}")
+            if "↳ from " in l:
+                self.assertEqual(l.index("↳"), col, f"source not under the answer text: {l!r}")
+                self.assertTrue(lines[i - 1].startswith("  Agent ("), l)
+        self.assertTrue(any(l.startswith("  Agent (final)    ") for l in lines), out)
+
+
+class DemoDelay(unittest.TestCase):
+    def test_zero_delay_keeps_order(self):
+        t = time.monotonic()
+        out = _demo("--lang", "en", "--delay", "0")
+        self.assertEqual(out.returncode, 0, out.stderr)
+        _assert_user_then_interim(self, out.stdout, 3)
+        self.assertLess(time.monotonic() - t, 30)
+
+    def test_negative_delay_rejected(self):
+        for argv, env in ((["--delay", "-1"], {}), ([], {"GOA_DEMO_DELAY": "-0.5"})):
+            out = _demo(*argv, **env)
+            self.assertEqual(out.returncode, 2, out.stdout)
+            self.assertIn("must be >= 0", out.stderr)
+
+    def _run(self, argv, env=None):
+        """Run the CLI in-process with time.sleep recorded, not slept."""
+        sleeps, events = [], []
+        live_show = cli._live.show
+
+        def sleep(s):
+            sleeps.append(s)
+            events.append(("sleep", s, cli._live.on))
+
+        out = io.StringIO()
+        with tempfile.TemporaryDirectory() as d, \
+                um.patch.object(cli.time, "sleep", sleep), um.patch.object(sys, "stdout", out), \
+                um.patch.object(cli, "_TTY", True), um.patch.dict(os.environ, env or {}), \
+                um.patch.object(cli._live, "show", lambda t: (events.append(("live", t)), live_show(t))):
+            os.environ.pop("GOA_LLM", None); os.environ.pop("GOA_DECISION", None)
+            os.environ["GOA_ENV_FILE"] = os.devnull
+            cli.main(argv + ["--repo", os.path.join(d, "r"), "--lang", "en"])
+        return sleeps, events, out.getvalue()
+
+    def test_delay_paces_turns(self):
+        sleeps, events, out = self._run(["demo", "--delay", "0.4"])
+        self.assertEqual(sleeps.count(0.4), 3)                     # before each of the 3 User lines
+        answers = out.count("Agent (")
+        self.assertEqual(sleeps.count(0.2), answers)               # before each answer
+        self.assertEqual(len(sleeps), 3 + answers)
+        for i, e in enumerate(events):                             # 'Agent is typing…' is up while it waits
+            if e[0] == "sleep" and e[1] == 0.2:
+                self.assertEqual(events[i - 1], ("live", "Agent is typing…"))
+
+    def test_env_delay_and_chat_unpaced(self):
+        sleeps, _, _ = self._run(["demo", "--scenario", "cancel"], {"GOA_DEMO_DELAY": "0.6"})
+        self.assertEqual(sleeps.count(0.6), 3)
+        self.assertEqual(sleeps.count(0.3), 3)
+        d = tempfile.mkdtemp(prefix="goa-test-")
+        self.addCleanup(shutil.rmtree, d, True)
+        a = cli._streaming_agent(um.Mock(llm="offline", decision="local"), d, "en")
+        with um.patch.object(cli.time, "sleep", lambda s: self.fail("chat slept")), um.patch.object(sys, "stdout", io.StringIO()):
+            a.submit("Plan my Busan business trip next week")
+            a.run()
 
 
 if __name__ == "__main__":
