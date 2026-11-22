@@ -36,9 +36,11 @@ Git lets the agent keep working on one branch while it handles a separate reques
 | | | |
 | --- | --- | --- |
 | **R1** | "Plan my Busan business trip next week" | `req/1` starts: checks the KTX timetable, commits 3 hotel candidates |
+| ↳ | *Started* | "Got it, I've started on “Busan trip plan”. I'll keep you posted as it goes." (instant, before any LLM call) |
 | **R2** | "Oh, keep the budget under ₩500,000" | judged **k1 supplement** → commits `constraint.budget` to `req/1` and redoes only the hotel step |
 | ↳ | *Interim ①* | "KTX is set for Tuesday morning. Applying your ₩500,000 budget, I'm picking the hotel again." |
 | **R3** | "By the way, what time is tomorrow's meeting?" | judged **k3 independent** → a separate `req/3` from `main`, merged when done; `req/1` keeps going |
+| ↳ | *Started* | "Got it. I'll check “tomorrow's meeting” separately and keep working on “Busan trip plan”." |
 | ↳ | *Interim ②* | "Tomorrow's meeting is at 2 PM. Still working on the trip plan." |
 | | `req/1` | re-picks the hotel → settles the plan → merges into `main` |
 | ↳ | **Final** | "Here is your plan: Tue 08:00 KTX → Hotel A (2 nights, ₩180,000) → … total ₩460,000, within budget. The budget came from your second request." |
@@ -216,7 +218,7 @@ Interim answers look at the branch. Final answers look at the merge.
 
 | | Interim answer | Final answer |
 | --- | --- | --- |
-| When | right when a new message arrives; for an independent request, when it is done | after every open request branch is merged |
+| When | right when a new message arrives (a new request gets an instant "started"); for an independent request, again when it is done | after every open request branch is merged |
 | Source | the latest commit of the branch in progress (not yet merged) | the merge commit: the claims changed from the base to the merge |
 | Content | what is settled, how the new message is applied, what is left | the full answer to the first request, noting what later requests changed |
 | Tone | says clearly that work is in progress; never states what may still change as settled | if a conflict is left, shows both values and asks |

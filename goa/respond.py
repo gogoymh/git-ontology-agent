@@ -33,7 +33,9 @@ class Responder:
         self.llm, self.lang, self.t = llm, lang, i18n.template_lang(lang)
 
     def write(self, facts: Dict[str, Any]) -> str:
-        if not self.llm.offline:
+        # "started" must be instant: templates cover it, so no LLM round trip unless the language needs one
+        instant = facts.get("kind") == "start" and self.t == self.lang
+        if not self.llm.offline and not instant:
             try:
                 text = self.llm.complete(RULES.format(lang=self.lang), json.dumps(facts, ensure_ascii=False), None,
                                          ANSWER_TOKENS)
@@ -90,6 +92,17 @@ class Responder:
         if still:
             ans += f" {i18n.josa(still, '은/는')} 계속 짜고 있습니다." if ko else f" Still working on the {still}."
         return ans
+
+    def _start(self, f, ko):
+        q = (lambda x: f"‘{x}’") if ko else (lambda x: f"“{x}”")
+        title, still = q(f["started"]), i18n.join(map(q, f.get("still_working") or []), self.t)
+        if ko:
+            if still:
+                return f"{title} 건은 따로 확인할게요. {still} 작업은 계속 진행합니다."
+            return f"{title} 작업을 시작했습니다. 진행되는 대로 알려 드릴게요."
+        if still:
+            return f"Got it. I'll check {title} separately and keep working on {still}."
+        return f"Got it, I've started on {title}. I'll keep you posted as it goes."
 
     def _progress(self, f, ko):
         head = self._decided_sentence(f, ko)

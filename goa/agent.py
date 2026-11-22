@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from . import i18n, log
 from .decision import DecisionModel, LocalDecision, make_decision, noul
@@ -69,7 +69,12 @@ class Task:
 
 class Agent:
     def __init__(self, repo: str, llm: Union[str, LLM] = "offline", decision: Union[str, DecisionModel] = "local",
-                 lang: str = "", skills: Optional[List[Skill]] = None):
+                 lang: str = "", skills: Optional[List[Skill]] = None,
+                 on_answer: Optional[Callable[[Answer], None]] = None,
+                 on_step: Optional[Callable[[str, str], None]] = None):
+        # on_answer fires the moment an answer exists (before slow work that follows it);
+        # on_step(branch, subject) fires after every work commit, so a UI can show it is alive.
+        self.on_answer, self.on_step = on_answer, on_step
         self.repo = Repo(repo)
         self.repo.ensure_main(DEFAULT_POLICY)
         self.policy = _policy(self._read_policy())
@@ -103,8 +108,7 @@ class Agent:
             open_ = self.open_tasks()
             _log.info("submit %s (%d open): %s", req, len(open_), text)
             if not open_:
-                self._start(text, self.n, independent=False)
-                return []
+                return self._start(text, self.n, independent=False)[1]
             target, rel, conf = self._judge(text, open_)
             if conf < self.policy["relation_confidence"]:
                 self.pending = {"text": text, "n": self.n, "target": target}
@@ -125,8 +129,10 @@ class Agent:
                         state.put(c)
                     main = next((c for c in claims if c.type != PROGRESS), claims[0])
                     verb = "redo" if main.id in redo else {FINDING: "find", DECISION: "decide"}.get(main.type, "update")
-                    self.repo.commit_state(task.branch, state, f"{main.id}: {verb} ({_short(main.value)})", {
+                    subject = f"{main.id}: {verb} ({_short(main.value)})"
+                    self.repo.commit_state(task.branch, state, subject, {
                         "Request": task.req, "Branch": task.branch, "Base": self.repo.short(task.base)})
+                    self._step(task.branch, subject)
                 else:
                     out += self._merge(task)
             return out
@@ -152,11 +158,15 @@ class Agent:
                 return s
         return self.skills[-1]
 
-    def _start(self, text: str, n: int, independent: bool) -> Task:
+    def _start(self, text: str, n: int, independent: bool) -> Tuple[Task, List[Answer]]:
         skill = self._route(text)
         base = self.repo.rev("main")
         task = Task(n, text, skill, base, independent, requests=[f"req.{n}"], title=skill.title(text))
         self.repo.branch(task.branch, "main")
+        # say "started" before any slow work (interpret, steps), so the user is never left waiting in silence
+        still = [t.title for t in self.open_tasks()]
+        ack = self._say("interim", {"kind": "start", "started": task.title, "still_working": still}, task,
+                        task.req, "k3" if independent else "", 1.0)
         state = self.repo.read_state(task.branch)
         self.clock += 1
         state.put(Claim(task.req, REQUEST, text, task.req, label=task.title, at=self.clock))
@@ -165,8 +175,9 @@ class Agent:
         self.repo.commit_state(task.branch, state, f"{task.req}: open ({_short(text)})", {
             "Request": task.req, "Relation": "k3 independent" if independent else "",
             "Branch": task.branch, "Base": self.repo.short(base)})
+        self._step(task.branch, f"{task.req}: open")
         self.tasks.append(task)
-        return task
+        return task, [ack]
 
     def _judge(self, text: str, open_: List[Task]) -> Tuple[Task, str, float]:
         touches: List[str] = []
@@ -214,8 +225,7 @@ class Agent:
         req = f"req.{n}"
         relation = f"{rel} {NAMES[rel]} (confidence {conf:.2f})"
         if rel == "k3":
-            self._start(text, n, independent=True)
-            return []
+            return self._start(text, n, independent=True)[1]
         state = self.repo.read_state(target.branch)
         if rel == "k5":
             return [self._say("interim", {"kind": "progress", **self._status_facts(target, state)}, target, req, rel, conf)]
@@ -329,7 +339,14 @@ class Agent:
         ans = Answer(kind, text, req, rel, source, commit)
         self.answers.append(ans)
         _log.info("answer %s from %s: %s", kind, source, text)
+        if self.on_answer:
+            self.on_answer(ans)
         return ans
+
+    def _step(self, branch: str, subject: str) -> None:
+        _log.debug("step %s %s", branch, subject)
+        if self.on_step:
+            self.on_step(branch, subject)
 
     def _read_policy(self) -> str:
         try:
