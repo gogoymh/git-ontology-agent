@@ -10,7 +10,7 @@ import threading
 import time
 from typing import List
 
-from . import __version__, i18n, log, mock
+from . import __version__, env, i18n, log, mock
 from .agent import NAMES, Agent, Answer
 from .decision import PROVIDERS as DECISIONS
 from .llm import PROVIDERS as LLMS
@@ -124,6 +124,7 @@ def cmd_log(args) -> int:
 
 
 def main(argv=None) -> int:
+    env.load(os.environ.get("GOA_ENV_FILE", ".env"))
     p = argparse.ArgumentParser(prog="goa", description="Git Ontology Agent: talk to an agent mid-task; "
                                 "git branches and an ontology merge every request into one answer.")
     p.add_argument("--version", action="version", version=f"goa {__version__}")
