@@ -52,6 +52,9 @@ def _key(env: str) -> str:
     return v
 
 
+TRUNCATION_RETRIES = 2  # 400 -> 800 -> 1600 tokens
+
+
 class OpenAICompatible(LLM):
     """Chat Completions shape, shared by OpenAI, xAI, Meta Llama API and OpenRouter."""
     offline = False
@@ -75,16 +78,29 @@ class OpenAICompatible(LLM):
         return f"{self.base_url}/chat/completions", headers, body
 
     def complete(self, system, prompt, schema=None, max_tokens=1024):
-        url, headers, body = self.request(system, prompt, schema, max_tokens)
-        out = http.post_json(url, headers, body)
-        msg = out["choices"][0]["message"]
-        content = msg.get("content")
-        if isinstance(content, list):  # Meta returns typed parts
-            content = "".join(p.get("text", "") for p in content)
-        if isinstance(content, dict):
-            content = content.get("text", "")
-        _log.debug("%s/%s returned %d chars", self.name, self.model, len(content or ""))
-        return content or ""
+        """Never returns a cut-off answer: on finish_reason `length` (reasoning tokens count against the
+        limit) it asks again with a doubled limit, and raises if the answer is still truncated."""
+        for attempt in range(TRUNCATION_RETRIES + 1):
+            url, headers, body = self.request(system, prompt, schema, max_tokens)
+            out = http.post_json(url, headers, body)
+            choice = out["choices"][0]
+            msg = choice.get("message") or {}
+            content = msg.get("content")
+            if isinstance(content, list):  # Meta and some OpenRouter providers return typed parts
+                content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
+            if isinstance(content, dict):
+                content = content.get("text", "")
+            content = content or ""
+            finish = choice.get("finish_reason")
+            _log.debug("%s/%s finish_reason=%s native=%s chars=%d reasoning_chars=%d usage=%s", self.name,
+                       self.model, finish, choice.get("native_finish_reason"), len(content),
+                       len(msg.get("reasoning") or ""), out.get("usage"))
+            if finish != "length":
+                return content
+            _log.warning("%s/%s answer cut at max_tokens=%d, attempt %d", self.name, self.model,
+                         max_tokens, attempt + 1)
+            max_tokens *= 2
+        raise RuntimeError(f"{self.name}/{self.model} answer still truncated at max_tokens={max_tokens // 2}")
 
 
 class MetaLlama(OpenAICompatible):

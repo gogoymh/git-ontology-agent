@@ -24,6 +24,10 @@ RULES = (
 )
 
 
+# Room for reasoning tokens, which count against the limit; the LLM retries with more on truncation.
+ANSWER_TOKENS = 1024
+
+
 class Responder:
     def __init__(self, llm: LLM, lang: str):
         self.llm, self.lang, self.t = llm, lang, i18n.template_lang(lang)
@@ -31,7 +35,8 @@ class Responder:
     def write(self, facts: Dict[str, Any]) -> str:
         if not self.llm.offline:
             try:
-                text = self.llm.complete(RULES.format(lang=self.lang), json.dumps(facts, ensure_ascii=False), None, 400)
+                text = self.llm.complete(RULES.format(lang=self.lang), json.dumps(facts, ensure_ascii=False), None,
+                                         ANSWER_TOKENS)
                 if text.strip():
                     return text.strip()
             except Exception as e:  # keep answering even when the provider is down

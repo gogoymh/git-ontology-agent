@@ -33,13 +33,13 @@ class OpenRouterDecision(ProviderTest):
     def test_chat_model_judges_with_strict_schema(self):
         content = json.dumps({"relation": {"choice": "k1", "confidence": 0.94}, "intent": {"noul": 0.81}})
         rec = self.use({"choices": [{"message": {"content": content}}]})
-        m = make_decision("openrouter:openai/gpt-5.1")
+        m = make_decision("openrouter:google/gemini-2.5-flash")
         self.assertIsInstance(m, ORDecision)
-        self.assertEqual(m.name, "openrouter/openai/gpt-5.1")
+        self.assertEqual(m.name, "openrouter/google/gemini-2.5-flash")
         a = m.decide({"new": "budget"}, RELATION)
         self.assertEqual((a["relation"]["choice"], a["intent"]["noul"]), ("k1", 0.81))
         u, h, b = rec.calls[0]
-        self.assertEqual((u, h["Authorization"], b["model"], b["temperature"]), (CHAT, "Bearer or-k", "openai/gpt-5.1", 0))
+        self.assertEqual((u, h["Authorization"], b["model"], b["temperature"]), (CHAT, "Bearer or-k", "google/gemini-2.5-flash", 0))
         fmt = b["response_format"]
         self.assertEqual((fmt["type"], fmt["json_schema"]["strict"]), ("json_schema", True))
         schema = fmt["json_schema"]["schema"]
@@ -50,7 +50,7 @@ class OpenRouterDecision(ProviderTest):
 
     def test_default_model_and_env(self):
         m = make_decision("openrouter")
-        self.assertEqual((type(m).__name__, m.model), ("OpenRouterDecision", "openrouter/auto"))
+        self.assertEqual((type(m).__name__, m.model), ("JevAPI", "typesafe/jev-1.14"))
         with mock.patch.dict(os.environ, {"GOA_OPENROUTER_DECISION_MODEL": "google/gemini-2.5-flash"}):
             self.assertEqual(make_decision("openrouter").model, "google/gemini-2.5-flash")
 
@@ -65,7 +65,7 @@ class OpenRouterDecision(ProviderTest):
     def test_missing_key(self):
         with mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}):
             with self.assertRaisesRegex(RuntimeError, "OPENROUTER_API_KEY"):
-                make_decision("openrouter:openai/gpt-5.1").decide("s", RELATION)
+                make_decision("openrouter:google/gemini-2.5-flash").decide("s", RELATION)
 
 
 class DotEnv(unittest.TestCase):
