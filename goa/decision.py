@@ -8,7 +8,8 @@ Canonical answers:
      "intent":   {"type": "noul", "noul": 0.81}}
 
 Backends: Typesafe Jev, OpenAI Decisions, Gemini (structured output), Cloudflare Workers AI,
-any Decisions gateway (OpenRouter / AIML API / Portkey: Jev, cloudflare/clef, ...),
+any OpenRouter chat model (strict JSON schema), any Decisions gateway (OpenRouter / AIML API: Jev,
+cloudflare/clef, ...),
 any LLM from goa.llm, and an offline heuristic.
 """
 from __future__ import annotations
@@ -185,6 +186,47 @@ class CloudflareDecision(DecisionModel):
         return res if isinstance(res, dict) else parse_json(res or "{}")
 
 
+class OpenRouterDecision(DecisionModel):
+    """Any OpenRouter chat model as a judge: strict JSON-schema output, temperature 0.
+    `require_parameters` keeps OpenRouter from routing to a provider that ignores the schema."""
+
+    URL = "https://openrouter.ai/api/v1/chat/completions"
+
+    def __init__(self, model: str):
+        self.model = model
+        self.name = f"openrouter/{model}"
+
+    def request(self, state, questions):
+        key = os.environ.get("OPENROUTER_API_KEY", "")
+        if not key:
+            raise RuntimeError("set OPENROUTER_API_KEY to use openrouter decisions")
+        body = {"model": self.model, "temperature": 0, "max_tokens": 400,
+                "messages": [{"role": "system", "content": SYSTEM},
+                             {"role": "user", "content": _prompt(state, questions)}],
+                "response_format": {"type": "json_schema", "json_schema": {
+                    "name": "decision", "strict": True, "schema": _strict(_schema(questions))}},
+                "provider": {"require_parameters": True}}
+        headers = {"Authorization": f"Bearer {key}", "X-Title": "Git Ontology Agent"}
+        return os.environ.get("OPENROUTER_CHAT_URL") or self.URL, headers, body
+
+    def _decide(self, state, questions):
+        url, headers, body = self.request(state, questions)
+        out = http.post_json(url, headers, body)
+        return parse_json(out["choices"][0]["message"].get("content") or "{}")
+
+
+def _strict(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Strict mode needs additionalProperties false on every object."""
+    if schema.get("type") == "object":
+        schema = {**schema, "additionalProperties": False,
+                  "properties": {k: _strict(v) for k, v in schema.get("properties", {}).items()}}
+    return schema
+
+
+# Decision-native models OpenRouter serves through its Jev-shape Decisions gateway.
+JEV_NATIVE = ("typesafe/", "cloudflare/clef")
+
+
 class LLMDecision(DecisionModel):
     def __init__(self, llm: LLM):
         self.llm = llm
@@ -240,7 +282,8 @@ PROVIDERS = ("local", "typesafe", "openai", "gemini", "cloudflare", "openrouter"
 
 
 def make_decision(spec: str = "local") -> DecisionModel:
-    """`typesafe`, `typesafe:typesafe/jev-1.13`, `openrouter:cloudflare/clef`, `llm:anthropic`, ..."""
+    """`typesafe`, `typesafe:typesafe/jev-1.13`, `openrouter:openai/gpt-5.1`, `openrouter:cloudflare/clef`,
+    `llm:anthropic`, ..."""
     provider, _, model = (spec or "local").partition(":")
     provider = provider.lower()
     env = lambda k, d: os.environ.get(k) or d  # noqa: E731
@@ -250,9 +293,11 @@ def make_decision(spec: str = "local") -> DecisionModel:
         m = model or env("GOA_TYPESAFE_MODEL", "typesafe/jev-1.14")
         return JevAPI(m, env("TYPESAFE_URL", "https://api.typesafe.ai/v1/systemone"), "TYPESAFE_API_KEY", m)
     if provider == "openrouter":
-        m = model or "typesafe/jev-1.14"
-        return JevAPI(f"openrouter/{m}", env("OPENROUTER_DECISIONS_URL", "https://openrouter.ai/api/alpha/decisions"),
-                      "OPENROUTER_API_KEY", m)
+        m = model or env("GOA_OPENROUTER_DECISION_MODEL", "openrouter/auto")
+        if m.startswith(JEV_NATIVE):
+            return JevAPI(f"openrouter/{m}", env("OPENROUTER_DECISIONS_URL", "https://openrouter.ai/api/alpha/decisions"),
+                          "OPENROUTER_API_KEY", m)
+        return OpenRouterDecision(m)
     if provider == "aimlapi":
         m = model or "typesafe/jev-1.14"
         return JevAPI(f"aimlapi/{m}", "https://api.aimlapi.com/v1/decisions", "AIMLAPI_API_KEY", m)

@@ -285,7 +285,8 @@ With nothing left to merge, there is no final answer: the second interim is the 
 pip install git+https://github.com/gogoymh/git-ontology-agent
 goa demo                                      # the budget example above, offline
 goa demo --mock                               # same, through simulated Anthropic + Typesafe APIs
-goa chat --llm openai --decision typesafe     # for real, with any LLM and decision model
+cp .env.example .env                          # add a key, e.g. OPENROUTER_API_KEY
+goa chat --llm openrouter --decision openrouter   # for real, with any LLM and decision model
 goa log                                       # the conversation as a git graph
 ```
 
@@ -313,12 +314,13 @@ No key yet? `--mock` answers every provider's real request shape locally, so the
 | `openai` | `OPENAI_API_KEY` | OpenAI Decisions API (`predicate` / `choice`), `gpt-6-luna` |
 | `gemini` | `GEMINI_API_KEY` | structured output with an enum schema, temperature 0 |
 | `cloudflare` | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Workers AI JSON-schema mode |
-| `openrouter:cloudflare/clef` | `OPENROUTER_API_KEY` | OpenRouter Decisions API |
+| `openrouter`, `openrouter:openai/gpt-5.1`, ... | `OPENROUTER_API_KEY` | any OpenRouter chat model, strict JSON schema, temperature 0 (default `openrouter/auto`) |
+| `openrouter:cloudflare/clef`, `openrouter:typesafe/...` | `OPENROUTER_API_KEY` | OpenRouter Decisions API |
 | `aimlapi` | `AIMLAPI_API_KEY` | Jev-shape gateway |
 | `llm:anthropic`, `llm:xai`, ... | that LLM's key | JSON-schema judgment |
 | `local` | none | deterministic keyword + ontology heuristic |
 
-Every backend returns the same typed answer (`choice` + `confidence` + `probabilities`, or `noul` in [0, 1]); a refusal becomes confidence 0, which makes the agent ask. Override models with `GOA_<PROVIDER>_MODEL` and endpoints with `TYPESAFE_URL`, `OPENAI_DECISIONS_URL`, `OPENROUTER_DECISIONS_URL`.
+Every backend returns the same typed answer (`choice` + `confidence` + `probabilities`, or `noul` in [0, 1]); a refusal becomes confidence 0, which makes the agent ask. Keys and defaults can live in `./.env` (see [`.env.example`](.env.example)); shell variables win. Override models with `GOA_<PROVIDER>_MODEL` (`GOA_OPENROUTER_DECISION_MODEL` for the judge) and endpoints with `TYPESAFE_URL`, `OPENAI_DECISIONS_URL`, `OPENROUTER_DECISIONS_URL`.
 
 ## Development
 
