@@ -5,3 +5,7 @@ dist/
 .goa/
 .venv/
 .env
+
+# Local agent rules
+CLAUDE.local.md
+AGENTS.override.md
