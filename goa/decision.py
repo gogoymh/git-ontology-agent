@@ -282,7 +282,7 @@ PROVIDERS = ("local", "typesafe", "openai", "gemini", "cloudflare", "openrouter"
 
 
 def make_decision(spec: str = "local") -> DecisionModel:
-    """`typesafe`, `typesafe:typesafe/jev-1.13`, `openrouter:openai/gpt-5.1`, `openrouter:cloudflare/clef`,
+    """`typesafe`, `typesafe:typesafe/jev-1.13`, `openrouter` (Jev 1.14), `openrouter:cloudflare/clef`,
     `llm:anthropic`, ..."""
     provider, _, model = (spec or "local").partition(":")
     provider = provider.lower()
@@ -293,7 +293,7 @@ def make_decision(spec: str = "local") -> DecisionModel:
         m = model or env("GOA_TYPESAFE_MODEL", "typesafe/jev-1.14")
         return JevAPI(m, env("TYPESAFE_URL", "https://api.typesafe.ai/v1/systemone"), "TYPESAFE_API_KEY", m)
     if provider == "openrouter":
-        m = model or env("GOA_OPENROUTER_DECISION_MODEL", "openrouter/auto")
+        m = model or env("GOA_OPENROUTER_DECISION_MODEL", "typesafe/jev-1.14")
         if m.startswith(JEV_NATIVE):
             return JevAPI(f"openrouter/{m}", env("OPENROUTER_DECISIONS_URL", "https://openrouter.ai/api/alpha/decisions"),
                           "OPENROUTER_API_KEY", m)

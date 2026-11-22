@@ -153,3 +153,7 @@ def main(argv=None) -> int:
     lg.set_defaults(fn=cmd_log)
     args = p.parse_args(argv)
     return args.fn(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

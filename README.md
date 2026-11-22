@@ -314,8 +314,8 @@ No key yet? `--mock` answers every provider's real request shape locally, so the
 | `openai` | `OPENAI_API_KEY` | OpenAI Decisions API (`predicate` / `choice`), `gpt-6-luna` |
 | `gemini` | `GEMINI_API_KEY` | structured output with an enum schema, temperature 0 |
 | `cloudflare` | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Workers AI JSON-schema mode |
-| `openrouter`, `openrouter:openai/gpt-5.1`, ... | `OPENROUTER_API_KEY` | any OpenRouter chat model, strict JSON schema, temperature 0 (default `openrouter/auto`) |
-| `openrouter:cloudflare/clef`, `openrouter:typesafe/...` | `OPENROUTER_API_KEY` | OpenRouter Decisions API |
+| `openrouter`, `openrouter:cloudflare/clef`, `openrouter:typesafe/...` | `OPENROUTER_API_KEY` | OpenRouter Decisions API (default `typesafe/jev-1.14`) |
+| `openrouter:google/gemini-2.5-flash`, ... | `OPENROUTER_API_KEY` | any OpenRouter chat model that supports strict JSON schema, temperature 0 |
 | `aimlapi` | `AIMLAPI_API_KEY` | Jev-shape gateway |
 | `llm:anthropic`, `llm:xai`, ... | that LLM's key | JSON-schema judgment |
 | `local` | none | deterministic keyword + ontology heuristic |
