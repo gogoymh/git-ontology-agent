@@ -9,3 +9,4 @@ dist/
 # Local agent rules
 CLAUDE.local.md
 AGENTS.override.md
+node_modules/

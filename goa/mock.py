@@ -1,8 +1,8 @@
 """Simulated provider APIs: run the real online code path with no key and no network.
 
 `session()` swaps `goa.http.transport` for a router that answers every documented request shape
-(Chat Completions, Anthropic Messages, Gemini generateContent, Jev, OpenAI Decisions, Workers AI)
-the way a real model would: it reads the prompt the agent built, does the work with the built-in
+(Chat Completions, Anthropic Messages, Gemini generateContent, Jev, OpenAI Decisions, Workers AI),
+and `goa.oauth.runner` for stand-ins of `claude -p` and `codex exec`, the way a real model would: it reads the prompt the agent built, does the work with the built-in
 demo skills, and replies in that provider's JSON. Everything above the transport (request builders,
 reply parsers, LLMSkill, Responder, decision normalization) is the production code.
 """
@@ -16,7 +16,7 @@ from collections import Counter
 from typing import Any, Dict, Iterator, List, Tuple
 from urllib.parse import urlparse
 
-from . import http, log
+from . import http, log, oauth
 from .decision import SYSTEM as DECISION_SYSTEM
 from .decision import LocalDecision
 from .llm import Offline
@@ -78,6 +78,30 @@ class Simulator:
         self.calls.append((provider, endpoint, role))
         _log.info("simulated %s %s (%s)", provider, endpoint, role)
         return reply
+
+    # --- sign-in CLIs -----------------------------------------------------------
+    def cli(self, argv: List[str], stdin: str, timeout: float, cwd: str, env: Dict[str, str]) -> Tuple[int, str, str]:
+        """`claude -p --output-format json` and `codex exec -o FILE`, as goa.oauth calls them."""
+        tool = os.path.basename(argv[0])
+        if "claude" in tool:
+            system = argv[argv.index("--system-prompt") + 1]
+            text, role = self.think(system, stdin)
+            out: Dict[str, Any] = {"type": "result", "subtype": "success", "is_error": False, "result": text,
+                                   "num_turns": 1, "total_cost_usd": 0}
+            if "--json-schema" in argv:
+                out["structured_output"] = json.loads(text)
+            self.calls.append(("claude-code", "claude -p", role))
+            _log.info("simulated claude -p (%s)", role)
+            return 0, json.dumps(out, ensure_ascii=False), ""
+        if "codex" in tool:
+            system = _between(stdin, "<instructions>\n", "\n</instructions>")
+            text, role = self.think(system, stdin.split("</instructions>\n\n", 1)[-1])
+            with open(argv[argv.index("-o") + 1], "w", encoding="utf-8") as f:
+                f.write(text)
+            self.calls.append(("codex", "codex exec", role))
+            _log.info("simulated codex exec (%s)", role)
+            return 0, json.dumps({"type": "turn.completed"}) + "\n", ""
+        return 127, "", f"no simulated CLI for {tool}"
 
     # --- the "model" ------------------------------------------------------------
     def think(self, system: str, prompt: str) -> Tuple[str, str]:
@@ -183,16 +207,16 @@ def summary(calls: List[Tuple[str, str, str]]) -> str:
 @contextlib.contextmanager
 def session() -> Iterator[Simulator]:
     """Simulate every provider until the block ends; fake keys are set only where none exist."""
-    sim, orig = Simulator(), http.transport
+    sim, orig, orig_cli = Simulator(), http.transport, oauth.runner
     added = [k for k in FAKE_KEYS if not os.environ.get(k)]
     for k in added:
         os.environ[k] = "mock-" + k.lower()
-    http.transport = sim
+    http.transport, oauth.runner = sim, sim.cli
     _log.info("mock session on (%d fake keys)", len(added))
     try:
         yield sim
     finally:
-        http.transport = orig
+        http.transport, oauth.runner = orig, orig_cli
         for k in added:
             os.environ.pop(k, None)
         _log.info("mock session off after %d simulated calls", len(sim.calls))

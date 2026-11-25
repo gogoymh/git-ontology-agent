@@ -299,6 +299,10 @@ class Agent:
         base = self.repo.read_state(roots[0].base)
         plan = [(c.label or c.id, c.value if c.status != CONFLICT else " / ".join(map(str, c.alternatives)))
                 for c in merged if c.from_ in reqs and c.type == DECISION and c.status in (CONFIRMED, CONFLICT)]
+        lookup = not plan  # a lookup ends in findings, not decisions ("what time is the meeting?")
+        if lookup:
+            plan = [(c.label or c.id, c.value) for c in merged
+                    if c.from_ in reqs and c.type == FINDING and c.status == CONFIRMED]
         prov = []
         for c in merged:
             if c.from_ in reqs and c.from_ not in first and c.type in (CONSTRAINT, ASSUMPTION, DECISION, FINDING) \
@@ -306,7 +310,7 @@ class Agent:
                 nth = i18n.ordinal(int(c.from_.split(".")[1]), i18n.template_lang(self.lang))
                 prov.append((c.label or c.id, c.value, nth, "changed" if c.corrects else "added"))
         conflicts = [(c.label or c.id, c.alternatives[0], c.alternatives[-1]) for c in merged if c.status == CONFLICT]
-        facts = {"kind": "final", "plan": plan, "provenance": prov, "conflicts": conflicts,
+        facts = {"kind": "final", "plan": plan, "lookup": lookup, "provenance": prov, "conflicts": conflicts,
                  "is_plan": any(t.skill.name == "trip" for t in roots),
                  "requests": [t.text for t in roots]}
         for t in roots:

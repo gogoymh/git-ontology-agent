@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import List
+from typing import Dict, List
 
 from . import log
 
@@ -11,11 +11,11 @@ _log = log.get("env")
 _LINE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$")
 
 
-def load(path: str = ".env") -> List[str]:
-    """Set each KEY=value from `path` that is not already set; returns the keys it set."""
+def parse(path: str) -> Dict[str, str]:
+    """KEY=value pairs of an env file ({} when it is missing). Quotes and trailing ` # comments` are stripped."""
+    out: Dict[str, str] = {}
     if not os.path.isfile(path):
-        return []
-    added = []
+        return out
     with open(path, encoding="utf-8") as f:
         for line in f:
             m = _LINE.match(line)
@@ -26,8 +26,19 @@ def load(path: str = ".env") -> List[str]:
                 val = val[1:-1]
             else:
                 val = val.split(" #", 1)[0].rstrip()
-            if val and not os.environ.get(key):
-                os.environ[key] = val
-                added.append(key)
+            if val:
+                out[key] = val
+    return out
+
+
+def load(path: str = ".env") -> List[str]:
+    """Set each KEY=value from `path` that is not already set; returns the keys it set."""
+    if not os.path.isfile(path):
+        return []
+    added = []
+    for key, val in parse(path).items():
+        if not os.environ.get(key):
+            os.environ[key] = val
+            added.append(key)
     _log.info("loaded %d variables from %s", len(added), os.path.abspath(path))
     return added
