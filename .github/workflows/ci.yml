@@ -14,3 +14,16 @@ jobs:
       - run: python -m unittest discover -s tests -t . -q
       - run: python -m goa demo --scenario budget --lang en
       - run: python -m goa demo --mock --scenario budget --lang en
+  ui:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm --prefix ui ci --no-audit --no-fund
+      - run: npm --prefix ui test
+      - run: node ui/scripts/license-check.mjs
