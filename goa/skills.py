@@ -214,6 +214,28 @@ _SYS = ("You are the worker of a git-backed agent. Work state is a list of typed
         "prefix). Write labels and values in language '{lang}'.")
 
 
+MAX_STEPS = 8
+
+
+def _int(v) -> int:
+    try:
+        return int(str(v))
+    except ValueError:
+        return -1
+
+
+def _json(claim: Optional[Claim], default):
+    try:
+        return json.loads(claim.value) if claim is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _new(c: Claim, old: Optional[Claim]) -> bool:
+    """A claim worth a commit: unknown, invalid, or with a different value or type."""
+    return old is None or old.status == INVALID or old.type != c.type or str(old.value) != str(c.value)
+
+
 class LLMSkill(Skill):
     name = "llm"
 
@@ -249,20 +271,36 @@ class LLMSkill(Skill):
         return [c for c in self._claims(data.get("claims"), req, at) if c.type in (CONSTRAINT, ASSUMPTION)]
 
     def next_step(self, state, req, at):
+        """One unit of work. Ends when the model says done (its last claims are kept), when it returns
+        nothing new, or after MAX_STEPS steps since the latest request: real models keep "checking"."""
         reqs = [c for c in state if c.type == "Request"]
+        latest = max([c.at for c in reqs] + [0])
+        invalid = [c for c in state if c.status == INVALID]
+        done = state.get("progress.done")
+        if done is not None and not invalid and _int(done.value) >= latest:
+            return None
+        steps = _json(state.get("progress.steps"), {})
+        n = steps.get("n", 0) if steps.get("since") == latest else 0
+        if n >= MAX_STEPS:
+            _log.warning("%s: stopping after %d steps since request at %d", req, n, latest)
+            return None
         prompt = ("Requests:\n" + "\n".join(f"- {c.id}: {c.value}" for c in reqs) +
                   f"\nCurrent claims:\n{state.to_yaml()}\n"
                   "Do the next single unit of work. Recompute claims whose status is invalid first. "
                   "Return 1-3 new or recomputed claims, the labels of what remains, and done=true only "
-                  "when nothing is missing or invalid.")
+                  "when nothing is missing or invalid. Do not add claims that only check or restate others.")
         data = self.llm.json(_SYS.format(lang=self.full_lang), prompt, _STEP_SCHEMA, 1500)
-        claims = self._claims(data.get("claims"), req, at)
+        claims = [c for c in self._claims(data.get("claims"), req, at) if _new(c, state.get(c.id))]
         remaining = [str(x) for x in data.get("remaining") or []]
-        invalid_left = [c for c in state if c.status == INVALID and c.id not in {x.id for x in claims}]
-        if data.get("done") and not claims and not invalid_left:
-            return None
+        invalid_left = [c for c in invalid if c.id not in {x.id for x in claims}]
+        if not claims and not invalid_left:
+            return None   # said done, or has nothing new to add: either way the work is finished
+        if data.get("done") and not invalid_left:
+            claims.append(Claim("progress.done", PROGRESS, str(latest), req, label="done", at=at))
         claims.append(Claim("progress.remaining", PROGRESS, json.dumps(remaining, ensure_ascii=False), req,
                             label="remaining", at=at))
+        claims.append(Claim("progress.steps", PROGRESS, json.dumps({"since": latest, "n": n + 1}), req,
+                            label="steps", at=at))
         return claims
 
     def pending(self, state):

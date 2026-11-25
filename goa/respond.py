@@ -133,6 +133,9 @@ class Responder:
         return f"Should I apply this to the {f['target']} in progress, or handle it separately?"
 
     def _final(self, f, ko):
+        if f.get("lookup") and f["plan"]:
+            found = ", ".join(f"{i18n.josa(l, '은/는')} {v}" if ko else f"{l} {v}" for l, v in f["plan"])
+            return f"확인했습니다. {found}입니다." if ko else f"Here is what I found: {found}."
         plan = " → ".join(v for _, v in f["plan"])
         out = (f"일정입니다. {plan}." if ko and f.get("is_plan") else
                f"결과입니다. {plan}." if ko else f"Here is the result: {plan}.")

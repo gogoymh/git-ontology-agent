@@ -1,0 +1,32 @@
+{
+  "name": "goa-ui",
+  "version": "0.1.0",
+  "description": "React (Ink) terminal UI for Git Ontology Agent",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "goa-ui": "dist/cli.js"
+  },
+  "files": [
+    "dist/*.js"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "prepare": "tsc -p .",
+    "test": "node --test \"dist/test/*.test.js\"",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "ink": "8.0.0",
+    "react": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.1",
+    "ink-testing-library": "4.0.0",
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,84 @@
+// The conversation screen against a scripted engine: header, turns, live branches, the prompt.
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {render} from 'ink-testing-library';
+import {App} from '../app.js';
+import {FakeEngine, KEY, READY, auth, frameWith, type} from './helpers.js';
+
+process.env['GOA_UI_LOG'] = '/dev/null';
+
+test('draws the header, user turns, interim and final answers, and the open branch', async () => {
+	const engine = new FakeEngine();
+	const started: string[][] = [];
+	const ui = render(
+		<App
+			boot={{llm: 'claude-code'}}
+			deps={{listConnections: async () => auth(), saveDefault: async () => {}, start: (l, d) => (started.push([l, d]), engine)}}
+		/>,
+	);
+	await frameWith(ui.lastFrame, 'Starting the engine');
+	assert.deepEqual(started, [['claude-code', 'auto']]);
+	engine.emit(READY);
+	let f = await frameWith(ui.lastFrame, 'Git Ontology Agent');
+	assert.match(f, /claude-code · sonnet · judge llm\/claude-code/);
+	assert.match(f, /Talk any time, even while it works/);
+
+	await type(ui.stdin, 'Plan my Busan trip', KEY.enter);
+	assert.deepEqual(engine.sent, [{type: 'submit', text: 'Plan my Busan trip'}]);
+	await frameWith(ui.lastFrame, 'Reading your message');
+	engine.emit({type: 'user', n: 1, text: 'Plan my Busan trip'});
+	engine.emit({type: 'answer', kind: 'interim', text: "Got it, I've started.", request: 'req.1', relation: '', relation_name: '', source: 'req/1@3d2aaef', commit: 'a'});
+	engine.emit({type: 'submitted'});
+	engine.emit({type: 'tasks', open: [{n: 1, title: 'Busan trip plan', branch: 'req/1'}]});
+	engine.emit({type: 'step', branch: 'req/1', subject: 'hotel.candidates: find (3 hotels)'});
+	f = await frameWith(ui.lastFrame, 'hotel.candidates: find');
+	assert.match(f, /R1 › Plan my Busan trip/);
+	assert.match(f, /◐ Got it, I've started\./);
+	assert.match(f, /interim · req\/1@3d2aaef/);
+	assert.match(f, /req\/1 Busan trip plan/);
+	assert.match(f, /1 open request/);
+	assert.doesNotMatch(f, /Reading your message/);
+
+	engine.emit({type: 'answer', kind: 'final', text: 'Here is your plan: Hotel A.', request: 'req.1', relation: '', relation_name: '', source: 'main@7cf5561', commit: 'b'});
+	engine.emit({type: 'tasks', open: []});
+	f = await frameWith(ui.lastFrame, 'Here is your plan');
+	assert.match(f, /● Here is your plan: Hotel A\./);
+	assert.match(f, /final · main@7cf5561/);
+	assert.match(f, /idle/);
+	ui.unmount();
+	assert.equal(engine.stopped, true);
+});
+
+test('edits with the cursor, recalls history, and runs slash commands', async () => {
+	const engine = new FakeEngine();
+	const ui = render(<App boot={{llm: 'offline'}} deps={{listConnections: async () => auth(), saveDefault: async () => {}, start: () => engine}} />);
+	engine.emit({...READY, llm: 'offline'} as typeof READY);
+	await frameWith(ui.lastFrame, 'Git Ontology Agent');
+	await type(ui.stdin, 'helo', '\u001B[D', 'l', KEY.enter); // left arrow, insert: "hello"
+	await type(ui.stdin, KEY.up, KEY.enter); // history: the same message again
+	assert.deepEqual(engine.sent, [{type: 'submit', text: 'hello'}, {type: 'submit', text: 'hello'}]);
+	await type(ui.stdin, 'fast\rtwo lines\rtail'); // Enter inside a typed chunk still sends
+	assert.deepEqual(engine.sent.slice(2), [{type: 'submit', text: 'fast'}, {type: 'submit', text: 'two lines'}]);
+	await frameWith(ui.lastFrame, '› tail');
+	await type(ui.stdin, '\u0015', '/log', KEY.enter); // ctrl+u clears the line first
+	assert.deepEqual(engine.sent.at(-1), {type: 'log'});
+	engine.emit({type: 'log', text: '* 5e8059d (main) Merge req/1'});
+	await frameWith(ui.lastFrame, 'Merge req/1');
+	await type(ui.stdin, '/help', KEY.enter);
+	await frameWith(ui.lastFrame, '/connect');
+	await type(ui.stdin, '/nope', KEY.enter);
+	await frameWith(ui.lastFrame, 'Unknown command /nope');
+	engine.emit({type: 'error', message: 'Claude Code: Not logged in'});
+	await frameWith(ui.lastFrame, '✕ Claude Code: Not logged in');
+	ui.unmount();
+});
+
+test('speaks Korean when the engine does', async () => {
+	const engine = new FakeEngine();
+	const ui = render(<App boot={{llm: 'offline', lang: 'ko'}} deps={{listConnections: async () => auth(), saveDefault: async () => {}, start: () => engine}} />);
+	await frameWith(ui.lastFrame, '엔진을 시작하는 중');
+	engine.emit({...READY, lang: 'ko'} as typeof READY);
+	const f = await frameWith(ui.lastFrame, '요청마다 브랜치, 답마다 머지');
+	assert.match(f, /작업 중에도 언제든 말을 걸 수 있습니다/);
+	ui.unmount();
+});

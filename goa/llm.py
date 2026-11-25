@@ -1,7 +1,9 @@
-"""LLM providers: OpenAI, Anthropic, Gemini, xAI, Meta (Llama API), OpenRouter, and offline.
+"""LLM providers: OpenAI, Anthropic, Gemini, xAI, Meta (Llama API), OpenRouter, the Claude Code and
+Codex sign-ins (goa.oauth), and offline.
 
-Spec strings look like `openai`, `anthropic:claude-opus-5-5` or `openrouter:meta-llama/llama-4-maverick`.
-Keys come from the usual environment variables; models can be overridden with GOA_<PROVIDER>_MODEL.
+Spec strings look like `openai`, `anthropic:claude-opus-5-5`, `claude-code:opus` or
+`openrouter:meta-llama/llama-4-maverick`. Keys come from the usual environment variables; models can be
+overridden with GOA_<PROVIDER>_MODEL (GOA_CLAUDE_CODE_MODEL, GOA_CODEX_MODEL).
 """
 from __future__ import annotations
 
@@ -178,7 +180,8 @@ DEFAULT_MODELS = {
     "meta": "Llama-4-Maverick-17B-128E-Instruct-FP8",
     "openrouter": "openrouter/auto",
 }
-PROVIDERS = tuple(DEFAULT_MODELS) + ("offline",)
+SIGN_INS = {"claude-code": "sonnet", "codex": ""}   # "" = the model Codex is configured with
+PROVIDERS = tuple(DEFAULT_MODELS) + tuple(SIGN_INS) + ("offline",)
 
 
 def make_llm(spec: str = "offline") -> LLM:
@@ -186,6 +189,11 @@ def make_llm(spec: str = "offline") -> LLM:
     provider = provider.lower()
     if provider == "offline":
         return Offline()
+    if provider in SIGN_INS:
+        from . import oauth  # sign-in providers run the official CLI; they import LLM from here
+        model = model or os.environ.get(f"GOA_{provider.upper().replace('-', '_')}_MODEL") or SIGN_INS[provider]
+        _log.info("LLM sign-in %s model %s", provider, model or "default")
+        return oauth.ClaudeCode(model) if provider == "claude-code" else oauth.Codex(model)
     if provider not in DEFAULT_MODELS:
         raise ValueError(f"unknown LLM provider {provider!r}; pick one of {', '.join(PROVIDERS)}")
     model = model or os.environ.get(f"GOA_{provider.upper()}_MODEL") or DEFAULT_MODELS[provider]
