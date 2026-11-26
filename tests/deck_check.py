@@ -2,13 +2,14 @@
 
     python3 tests/deck_check.py count|korean|story|valid
 """
+import os
 import re
 import sys
 import zipfile
 from pathlib import Path
 from xml.dom import minidom
 
-DECK = Path(__file__).resolve().parent.parent / "docs" / "goa-intro-ko.pptx"
+DECK = Path(os.environ.get("GOA_DECK") or Path(__file__).resolve().parent.parent / "docs" / "goa-intro-ko.pptx")
 
 
 def slides():
@@ -64,5 +65,8 @@ def check_valid():
 
 
 if __name__ == "__main__":
-    {"count": check_count, "korean": check_korean, "story": check_story, "valid": check_valid}[sys.argv[1]]()
+    try:
+        {"count": check_count, "korean": check_korean, "story": check_story, "valid": check_valid}[sys.argv[1]]()
+    except (AssertionError, zipfile.BadZipFile, OSError) as e:
+        sys.exit("deck_check %s: %s" % (sys.argv[1], e))
     print("ok", sys.argv[1])

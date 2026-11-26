@@ -14,6 +14,19 @@ jobs:
       - run: python -m unittest discover -s tests -t . -q
       - run: python -m goa demo --scenario budget --lang en
       - run: python -m goa demo --mock --scenario budget --lang en
+  docs:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python tests/readme_check.py
+      - run: python tests/readme_links_check.py
+      - run: python tests/deck_check.py valid
+      - run: python tests/deck_check.py count
+      - run: python tests/deck_check.py korean
+      - run: python tests/deck_check.py story
   ui:
     runs-on: ubuntu-22.04
     steps:
