@@ -17,11 +17,15 @@ export type AnswerEvent = {
 	source: string;
 	commit: string;
 };
+export type UserEvent = {type: 'user'; n: number | null; text: string};
+export type HistoryItem = UserEvent | AnswerEvent;
+export type HistoryEvent = {type: 'history'; items: HistoryItem[]};
 export type OpenTask = {n: number; title: string; branch: string};
 export type EngineEvent =
 	| Ready
+	| HistoryEvent
 	| AnswerEvent
-	| {type: 'user'; n: number | null; text: string}
+	| UserEvent
 	| {type: 'step'; branch: string; subject: string}
 	| {type: 'tasks'; open: OpenTask[]}
 	| {type: 'submitted'}
@@ -76,7 +80,7 @@ export function spawnEngine(args: string[], cwd = process.cwd()): Engine {
 		if (!line.trim()) return;
 		try {
 			const e = JSON.parse(line) as EngineEvent;
-			log(`event ${e.type}${e.type === 'answer' ? ` ${e.kind} from ${e.source}` : ''}`);
+			log(`event ${e.type}${e.type === 'answer' ? ` ${e.kind} from ${e.source}` : e.type === 'history' ? ` ${e.items.length} items` : ''}`);
 			emit(e);
 		} catch {
 			log(`engine wrote a non-JSON line: ${line.slice(0, 200)}`);

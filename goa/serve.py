@@ -6,6 +6,7 @@ In (one object per line; a line that is not JSON is taken as a message):
     {"type": "quit"}                       stop now (end of input instead waits until the work is done)
 Out:
     ready     {version, llm, model, decision, lang, repo}
+    history   {items: [user|answer, ...]}  recent turns read from git when the repo is not empty
     user      {n, text}                    n is the request number (null for a reply to a question)
     answer    {kind, text, request, relation, relation_name, source, commit}
     step      {branch, subject}            after every work commit
@@ -29,6 +30,7 @@ from .agent import NAMES, Agent, Answer
 
 _log = log.get("serve")
 GIVE_UP = 3   # at end of input, stop waiting after this many failed ticks in a row
+HISTORY_LIMIT = 50
 
 
 class Inbox:
@@ -85,7 +87,7 @@ def next_number(agent: Agent, text: str) -> Optional[int]:
 
 
 class Server:
-    def __init__(self, make_agent, inp: IO[str], out: IO[str]):
+    def __init__(self, make_agent, inp: IO[str], out: IO[str], history_limit: int = HISTORY_LIMIT):
         self.ev = Events(out)
         self.inp = inp
         self.agent: Agent = make_agent(self.ev.answer, lambda b, s: self.ev.emit("step", branch=b, subject=s))
@@ -95,6 +97,14 @@ class Server:
         self.tasks_lock = threading.Lock()
         self.failed = False
         self.errors = 0   # consecutive failed ticks
+        self.history_limit = history_limit
+
+    def history(self) -> None:
+        if not hasattr(self.agent, "history") or self.history_limit <= 0:
+            return
+        items = self.agent.history(limit=self.history_limit)
+        if items:
+            self.ev.emit("history", items=items)
 
     def tasks(self) -> None:
         with self.tasks_lock:
@@ -155,6 +165,7 @@ class Server:
     def run(self) -> int:
         ready(self.ev, self.agent)
         self.tasks()
+        self.history()
         worker = threading.Thread(target=self.work, daemon=True)
         worker.start()
         quit_now = False
@@ -175,5 +186,5 @@ class Server:
         return 0
 
 
-def serve(make_agent, inp: IO[str] = None, out: IO[str] = None) -> int:
-    return Server(make_agent, inp or sys.stdin, out or sys.stdout).run()
+def serve(make_agent, inp: IO[str] = None, out: IO[str] = None, history_limit: int = HISTORY_LIMIT) -> int:
+    return Server(make_agent, inp or sys.stdin, out or sys.stdout, history_limit=history_limit).run()
