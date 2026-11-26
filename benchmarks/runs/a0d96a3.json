@@ -1,0 +1,198 @@
+{
+  "ref": "a0d96a3",
+  "commit": "a0d96a391eee249868093dc4c8dbd574ad9970a8",
+  "recorded_at": "2026-11-26T16:00:46Z",
+  "previous_commit": "33deb7d1c6dc88dd99bc5ce222e123a137f7fa75",
+  "previous_source": "a0d96a3:benchmarks/baseline.json",
+  "merges": [
+    "a0d96a3 [GOA-20] Merge mission 16: verify README, its link targets and the intro deck in CI",
+    "6d937a6 [GOA-11] Merge mission 15: link Korean intro deck and rebuild command in README",
+    "837240b [GOA-17] Merge mission 14: replay git conversation history on serve start and restore in UI",
+    "14e6b25 [GOA-15] Merge mission 13: add headless core benchmark with baseline and regression compare",
+    "52faeea [GOA-14] Merge mission 12: restore open req branches and resume work across restarts"
+  ],
+  "passed": true,
+  "summary": {
+    "overall_accuracy": 1.0,
+    "total_cases": 55,
+    "passed_cases": 55,
+    "relation_accuracy": 1.0,
+    "invalidation_exact_match": 1.0,
+    "invalidation_f1": 1.0,
+    "merge_accuracy": 1.0,
+    "scenario_pass_rate": 1.0,
+    "submit_ack_p50_ms": 315.471,
+    "tick_p50_ms": 192.338,
+    "scenario_total_p50_ms": 2515.787,
+    "serve_roundtrip_p50_ms": 1139.877
+  },
+  "comparison": {
+    "passed": false,
+    "baseline": {
+      "path": "a0d96a3:benchmarks/baseline.json",
+      "commit": "52faeea",
+      "recorded_at": "2026-11-26T09:04:34Z"
+    },
+    "current": {
+      "commit": "a0d96a3",
+      "recorded_at": "2026-11-26T15:58:16Z"
+    },
+    "tolerances": {
+      "accuracy_tol": 0.0,
+      "latency_tol_pct": 50.0,
+      "latency_tol_ms": 50.0
+    },
+    "deltas": {
+      "relation_accuracy": {
+        "baseline": 1.0,
+        "current": 1.0,
+        "delta": 0.0,
+        "status": "ok"
+      },
+      "invalidation_exact_match": {
+        "baseline": 1.0,
+        "current": 1.0,
+        "delta": 0.0,
+        "status": "ok"
+      },
+      "invalidation_f1": {
+        "baseline": 1.0,
+        "current": 1.0,
+        "delta": 0.0,
+        "status": "ok"
+      },
+      "merge_accuracy": {
+        "baseline": 1.0,
+        "current": 1.0,
+        "delta": 0.0,
+        "status": "ok"
+      },
+      "scenario_pass_rate": {
+        "baseline": 1.0,
+        "current": 1.0,
+        "delta": 0.0,
+        "status": "ok"
+      },
+      "overall_accuracy": {
+        "baseline": 1.0,
+        "current": 1.0,
+        "delta": 0.0,
+        "status": "ok"
+      },
+      "submit_ack_p50_ms": {
+        "baseline_ms": 138.013,
+        "current_ms": 315.471,
+        "delta_ms": 177.458,
+        "delta_pct": 128.58,
+        "status": "regression"
+      },
+      "tick_p50_ms": {
+        "baseline_ms": 68.746,
+        "current_ms": 192.338,
+        "delta_ms": 123.592,
+        "delta_pct": 179.78,
+        "status": "regression"
+      },
+      "scenario_total_p50_ms": {
+        "baseline_ms": 1075.525,
+        "current_ms": 2515.787,
+        "delta_ms": 1440.262,
+        "delta_pct": 133.91,
+        "status": "regression"
+      },
+      "serve_roundtrip_p50_ms": {
+        "baseline_ms": 734.678,
+        "current_ms": 1139.877,
+        "delta_ms": 405.199,
+        "delta_pct": 55.15,
+        "status": "regression"
+      }
+    },
+    "regressions": [
+      {
+        "metric": "submit_ack_p50_ms",
+        "kind": "latency",
+        "baseline_ms": 138.013,
+        "current_ms": 315.471,
+        "delta_ms": 177.458,
+        "delta_pct": 128.58,
+        "suspect_modules": [
+          "goa/agent.py",
+          "goa/decision.py",
+          "goa/gitstore.py",
+          "goa/respond.py"
+        ],
+        "reproduce": "python3 scripts/benchmark.py --suite scenarios --iterations 5"
+      },
+      {
+        "metric": "tick_p50_ms",
+        "kind": "latency",
+        "baseline_ms": 68.746,
+        "current_ms": 192.338,
+        "delta_ms": 123.592,
+        "delta_pct": 179.78,
+        "suspect_modules": [
+          "goa/agent.py",
+          "goa/gitstore.py",
+          "goa/skills.py"
+        ],
+        "reproduce": "python3 scripts/benchmark.py --suite scenarios --iterations 5"
+      },
+      {
+        "metric": "scenario_total_p50_ms",
+        "kind": "latency",
+        "baseline_ms": 1075.525,
+        "current_ms": 2515.787,
+        "delta_ms": 1440.262,
+        "delta_pct": 133.91,
+        "suspect_modules": [
+          "goa/agent.py",
+          "goa/gitstore.py",
+          "goa/ontology.py",
+          "goa/mock.py"
+        ],
+        "reproduce": "python3 scripts/benchmark.py --suite scenarios --iterations 5"
+      },
+      {
+        "metric": "serve_roundtrip_p50_ms",
+        "kind": "latency",
+        "baseline_ms": 734.678,
+        "current_ms": 1139.877,
+        "delta_ms": 405.199,
+        "delta_pct": 55.15,
+        "suspect_modules": [
+          "goa/serve.py",
+          "goa/agent.py",
+          "goa/gitstore.py"
+        ],
+        "reproduce": "python3 scripts/benchmark.py --suite scenarios --iterations 5"
+      }
+    ]
+  },
+  "paired_latency": {
+    "previous_commit": "33deb7d1c6dc88dd99bc5ce222e123a137f7fa75",
+    "rounds": 2,
+    "best_p50_ms": {
+      "previous": {
+        "submit_ack_p50_ms": 151.921,
+        "tick_p50_ms": 73.617,
+        "scenario_total_p50_ms": 1151.757,
+        "serve_roundtrip_p50_ms": 971.196
+      },
+      "current": {
+        "submit_ack_p50_ms": 181.913,
+        "tick_p50_ms": 82.437,
+        "scenario_total_p50_ms": 1350.996,
+        "serve_roundtrip_p50_ms": 893.607
+      }
+    },
+    "flagged": [
+      "submit_ack_p50_ms",
+      "tick_p50_ms",
+      "scenario_total_p50_ms",
+      "serve_roundtrip_p50_ms"
+    ],
+    "confirmed": []
+  },
+  "regressions": []
+}
