@@ -1,0 +1,693 @@
+{
+  "schema_version": 1,
+  "benchmark_name": "git-ontology-agent-core-benchmark",
+  "recorded_at": "2026-11-26T09:04:34Z",
+  "git": {
+    "commit": "52faeea2954998238106b5b9d264b42fb1e43d5d",
+    "short_commit": "52faeea",
+    "branch": "GOA-15",
+    "base_branch": "preconquer-gogoymh",
+    "base_commit": "52faeea2954998238106b5b9d264b42fb1e43d5d",
+    "dirty": true
+  },
+  "environment": {
+    "python": "3.9.6",
+    "platform": "macOS-26.7.3-arm64-arm-64bit",
+    "iterations": 5
+  },
+  "summary": {
+    "overall_accuracy": 1.0,
+    "total_cases": 55,
+    "passed_cases": 55,
+    "relation_accuracy": 1.0,
+    "invalidation_exact_match": 1.0,
+    "invalidation_f1": 1.0,
+    "merge_accuracy": 1.0,
+    "scenario_pass_rate": 1.0,
+    "submit_ack_p50_ms": 138.013,
+    "tick_p50_ms": 68.746,
+    "scenario_total_p50_ms": 1075.525,
+    "serve_roundtrip_p50_ms": 734.678
+  },
+  "suites": {
+    "relation": {
+      "total": 22,
+      "passed": 22,
+      "accuracy": 1.0,
+      "by_relation": {
+        "clarify": {
+          "total": 2,
+          "passed": 2,
+          "accuracy": 1.0
+        },
+        "k1": {
+          "total": 5,
+          "passed": 5,
+          "accuracy": 1.0
+        },
+        "k2": {
+          "total": 5,
+          "passed": 5,
+          "accuracy": 1.0
+        },
+        "k3": {
+          "total": 4,
+          "passed": 4,
+          "accuracy": 1.0
+        },
+        "k4": {
+          "total": 3,
+          "passed": 3,
+          "accuracy": 1.0
+        },
+        "k5": {
+          "total": 3,
+          "passed": 3,
+          "accuracy": 1.0
+        }
+      },
+      "cases": [
+        {
+          "id": "rel_k1_budget_en",
+          "passed": true,
+          "elapsed_ms": 114.647,
+          "expected_relation": "k1",
+          "actual_relation": "k1"
+        },
+        {
+          "id": "rel_k1_budget_ko",
+          "passed": true,
+          "elapsed_ms": 110.334,
+          "expected_relation": "k1",
+          "actual_relation": "k1"
+        },
+        {
+          "id": "rel_k1_budget_symbol_en",
+          "passed": true,
+          "elapsed_ms": 113.723,
+          "expected_relation": "k1",
+          "actual_relation": "k1"
+        },
+        {
+          "id": "rel_k1_budget_krw_en",
+          "passed": true,
+          "elapsed_ms": 119.028,
+          "expected_relation": "k1",
+          "actual_relation": "k1"
+        },
+        {
+          "id": "rel_k2_city_not_but_en",
+          "passed": true,
+          "elapsed_ms": 115.907,
+          "expected_relation": "k2",
+          "actual_relation": "k2"
+        },
+        {
+          "id": "rel_k2_city_malgo_ko",
+          "passed": true,
+          "elapsed_ms": 114.682,
+          "expected_relation": "k2",
+          "actual_relation": "k2"
+        },
+        {
+          "id": "rel_k2_city_instead_en",
+          "passed": true,
+          "elapsed_ms": 111.86,
+          "expected_relation": "k2",
+          "actual_relation": "k2"
+        },
+        {
+          "id": "rel_k2_city_change_to_en",
+          "passed": true,
+          "elapsed_ms": 112.755,
+          "expected_relation": "k2",
+          "actual_relation": "k2"
+        },
+        {
+          "id": "rel_k2_city_change_ko",
+          "passed": true,
+          "elapsed_ms": 156.464,
+          "expected_relation": "k2",
+          "actual_relation": "k2"
+        },
+        {
+          "id": "rel_k3_meeting_en",
+          "passed": true,
+          "elapsed_ms": 133.089,
+          "expected_relation": "k3",
+          "actual_relation": "k3"
+        },
+        {
+          "id": "rel_k3_meeting_ko",
+          "passed": true,
+          "elapsed_ms": 137.577,
+          "expected_relation": "k3",
+          "actual_relation": "k3"
+        },
+        {
+          "id": "rel_k3_calendar_en",
+          "passed": true,
+          "elapsed_ms": 145.081,
+          "expected_relation": "k3",
+          "actual_relation": "k3"
+        },
+        {
+          "id": "rel_k3_meeting_question_ko",
+          "passed": true,
+          "elapsed_ms": 140.365,
+          "expected_relation": "k3",
+          "actual_relation": "k3"
+        },
+        {
+          "id": "rel_k4_cancel_en",
+          "passed": true,
+          "elapsed_ms": 131.319,
+          "expected_relation": "k4",
+          "actual_relation": "k4"
+        },
+        {
+          "id": "rel_k4_cancel_ko",
+          "passed": true,
+          "elapsed_ms": 141.898,
+          "expected_relation": "k4",
+          "actual_relation": "k4"
+        },
+        {
+          "id": "rel_k4_nevermind_en",
+          "passed": true,
+          "elapsed_ms": 135.226,
+          "expected_relation": "k4",
+          "actual_relation": "k4"
+        },
+        {
+          "id": "rel_k5_progress_en",
+          "passed": true,
+          "elapsed_ms": 65.349,
+          "expected_relation": "k5",
+          "actual_relation": "k5"
+        },
+        {
+          "id": "rel_k5_progress_ko",
+          "passed": true,
+          "elapsed_ms": 84.702,
+          "expected_relation": "k5",
+          "actual_relation": "k5"
+        },
+        {
+          "id": "rel_k5_status_en",
+          "passed": true,
+          "elapsed_ms": 65.032,
+          "expected_relation": "k5",
+          "actual_relation": "k5"
+        },
+        {
+          "id": "rel_multi_target_trip_en",
+          "passed": true,
+          "elapsed_ms": 142.05,
+          "expected_relation": "k1",
+          "actual_relation": "k1",
+          "expected_target_branch": "req/1",
+          "actual_target_branch": "req/1"
+        },
+        {
+          "id": "rel_clarify_apply_en",
+          "passed": true,
+          "elapsed_ms": 61.168,
+          "expected_relation": "clarify",
+          "actual_relation": "clarify",
+          "expected_post_clarify_relation": "k1",
+          "actual_post_clarify_relation": "k1"
+        },
+        {
+          "id": "rel_clarify_separate_ko",
+          "passed": true,
+          "elapsed_ms": 62.354,
+          "expected_relation": "clarify",
+          "actual_relation": "clarify",
+          "expected_post_clarify_relation": "k3",
+          "actual_post_clarify_relation": "k3"
+        }
+      ]
+    },
+    "invalidation": {
+      "total": 10,
+      "passed": 10,
+      "exact_match_rate": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "cases": [
+        {
+          "id": "inv_budget_wildcard",
+          "mode": "state_invalidate",
+          "passed": true,
+          "elapsed_ms": 0.033,
+          "expected_invalid": [
+            "hotel.candidates",
+            "plan.hotel",
+            "plan.total"
+          ],
+          "actual_invalid": [
+            "hotel.candidates",
+            "plan.hotel",
+            "plan.total"
+          ],
+          "errors": []
+        },
+        {
+          "id": "inv_city_correction",
+          "mode": "state_correct",
+          "passed": true,
+          "elapsed_ms": 0.051,
+          "expected_invalid": [
+            "hotel.candidates",
+            "plan.hotel",
+            "plan.total",
+            "plan.train"
+          ],
+          "actual_invalid": [
+            "hotel.candidates",
+            "plan.hotel",
+            "plan.total",
+            "plan.train"
+          ],
+          "errors": []
+        },
+        {
+          "id": "inv_no_dependents",
+          "mode": "state_invalidate",
+          "passed": true,
+          "elapsed_ms": 0.007,
+          "expected_invalid": [],
+          "actual_invalid": [],
+          "errors": []
+        },
+        {
+          "id": "inv_deep_chain",
+          "mode": "state_invalidate",
+          "passed": true,
+          "elapsed_ms": 0.014,
+          "expected_invalid": [
+            "node.b",
+            "node.c",
+            "node.d",
+            "node.e"
+          ],
+          "actual_invalid": [
+            "node.b",
+            "node.c",
+            "node.d",
+            "node.e"
+          ],
+          "errors": []
+        },
+        {
+          "id": "inv_diamond_graph",
+          "mode": "state_invalidate",
+          "passed": true,
+          "elapsed_ms": 0.011,
+          "expected_invalid": [
+            "leaf",
+            "left",
+            "right"
+          ],
+          "actual_invalid": [
+            "leaf",
+            "left",
+            "right"
+          ],
+          "errors": []
+        },
+        {
+          "id": "inv_cycle_guard",
+          "mode": "state_invalidate",
+          "passed": true,
+          "elapsed_ms": 0.009,
+          "expected_invalid": [
+            "c1",
+            "c2",
+            "c3"
+          ],
+          "actual_invalid": [
+            "c1",
+            "c2",
+            "c3"
+          ],
+          "errors": []
+        },
+        {
+          "id": "inv_skip_request_and_progress",
+          "mode": "state_invalidate",
+          "passed": true,
+          "elapsed_ms": 0.008,
+          "expected_invalid": [
+            "plan.train"
+          ],
+          "actual_invalid": [
+            "plan.train"
+          ],
+          "errors": []
+        },
+        {
+          "id": "inv_wildcard_prefix_boundary",
+          "mode": "state_invalidate",
+          "passed": true,
+          "elapsed_ms": 0.008,
+          "expected_invalid": [
+            "plan.train"
+          ],
+          "actual_invalid": [
+            "plan.train"
+          ],
+          "errors": []
+        },
+        {
+          "id": "inv_agent_supplement_flow",
+          "mode": "agent_flow",
+          "passed": true,
+          "elapsed_ms": 877.545,
+          "expected_invalid": [
+            "hotel.candidates"
+          ],
+          "actual_invalid": [
+            "hotel.candidates"
+          ],
+          "errors": []
+        },
+        {
+          "id": "inv_agent_correction_flow",
+          "mode": "agent_flow",
+          "passed": true,
+          "elapsed_ms": 889.151,
+          "expected_invalid": [
+            "hotel.candidates",
+            "plan.train"
+          ],
+          "actual_invalid": [
+            "hotel.candidates",
+            "plan.train"
+          ],
+          "errors": []
+        }
+      ]
+    },
+    "merge": {
+      "total": 16,
+      "passed": 16,
+      "accuracy": 1.0,
+      "cases": [
+        {
+          "id": "merge_theirs_only_change",
+          "passed": true,
+          "elapsed_ms": 0.077,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_ours_only_change",
+          "passed": true,
+          "elapsed_ms": 0.049,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_same_change_both_sides",
+          "passed": true,
+          "elapsed_ms": 0.017,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_disjoint_additions",
+          "passed": true,
+          "elapsed_ms": 0.002,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_delete_on_main_untouched_branch",
+          "passed": true,
+          "elapsed_ms": 0.017,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_delete_on_branch_changed_main",
+          "passed": true,
+          "elapsed_ms": 0.017,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_constraint_stack_scalars",
+          "passed": true,
+          "elapsed_ms": 0.03,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_constraint_stack_dedup_list",
+          "passed": true,
+          "elapsed_ms": 0.029,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_assumption_correction_wins",
+          "passed": true,
+          "elapsed_ms": 0.047,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_finding_theirs_later_clock_wins",
+          "passed": true,
+          "elapsed_ms": 0.047,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_finding_ours_later_clock_wins",
+          "passed": true,
+          "elapsed_ms": 0.048,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_progress_never_merged",
+          "passed": true,
+          "elapsed_ms": 0.002,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_decision_invalid_loses",
+          "passed": true,
+          "elapsed_ms": 0.047,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_requests_all_kept",
+          "passed": true,
+          "elapsed_ms": 0.002,
+          "conflicts": 0,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_conflict_resolved_at_threshold",
+          "passed": true,
+          "elapsed_ms": 0.057,
+          "conflicts": 1,
+          "unresolved": 0,
+          "errors": []
+        },
+        {
+          "id": "merge_conflict_unresolved_below_threshold",
+          "passed": true,
+          "elapsed_ms": 0.058,
+          "conflicts": 1,
+          "unresolved": 1,
+          "errors": []
+        }
+      ]
+    },
+    "scenarios": {
+      "total": 7,
+      "passed": 7,
+      "pass_rate": 1.0,
+      "cases": [
+        {
+          "id": "e2e_budget_en_offline",
+          "mode": "agent",
+          "passed": true,
+          "p50_ms": 1219.669,
+          "p95_ms": 1233.806,
+          "mean_ms": 1203.495,
+          "errors": []
+        },
+        {
+          "id": "e2e_budget_ko_offline",
+          "mode": "agent",
+          "passed": true,
+          "p50_ms": 1279.219,
+          "p95_ms": 1910.793,
+          "mean_ms": 1404.995,
+          "errors": []
+        },
+        {
+          "id": "e2e_correction_en_offline",
+          "mode": "agent",
+          "passed": true,
+          "p50_ms": 922.56,
+          "p95_ms": 1007.436,
+          "mean_ms": 924.351,
+          "errors": []
+        },
+        {
+          "id": "e2e_cancel_en_offline",
+          "mode": "agent",
+          "passed": true,
+          "p50_ms": 779.129,
+          "p95_ms": 841.314,
+          "mean_ms": 764.153,
+          "errors": []
+        },
+        {
+          "id": "e2e_budget_en_mock",
+          "mode": "agent",
+          "passed": true,
+          "p50_ms": 1822.618,
+          "p95_ms": 2282.333,
+          "mean_ms": 1825.1,
+          "errors": []
+        },
+        {
+          "id": "e2e_correction_en_mock",
+          "mode": "agent",
+          "passed": true,
+          "p50_ms": 859.149,
+          "p95_ms": 874.973,
+          "mean_ms": 859.217,
+          "errors": []
+        },
+        {
+          "id": "e2e_serve_jsonlines_offline",
+          "mode": "serve",
+          "passed": true,
+          "p50_ms": 734.678,
+          "p95_ms": 787.757,
+          "mean_ms": 735.088,
+          "errors": []
+        }
+      ]
+    }
+  },
+  "latency": {
+    "iterations": 5,
+    "submit_ack_ms": {
+      "count": 80,
+      "min": 78.01,
+      "p50": 138.013,
+      "p95": 254.725,
+      "mean": 154.775,
+      "max": 351.247
+    },
+    "tick_ms": {
+      "count": 170,
+      "min": 51.565,
+      "p50": 68.746,
+      "p95": 254.354,
+      "mean": 109.934,
+      "max": 485.462
+    },
+    "scenario_total_ms": {
+      "count": 30,
+      "min": 620.509,
+      "p50": 1075.525,
+      "p95": 2090.555,
+      "mean": 1163.552,
+      "max": 2325.602
+    },
+    "serve_roundtrip_ms": {
+      "count": 5,
+      "min": 678.71,
+      "p50": 734.678,
+      "p95": 787.757,
+      "mean": 735.088,
+      "max": 788.259
+    },
+    "by_scenario_ms": {
+      "e2e_budget_en_offline": {
+        "count": 5,
+        "min": 1125.947,
+        "p50": 1219.669,
+        "p95": 1233.806,
+        "mean": 1203.495,
+        "max": 1236.934
+      },
+      "e2e_budget_ko_offline": {
+        "count": 5,
+        "min": 1170.905,
+        "p50": 1279.219,
+        "p95": 1910.793,
+        "mean": 1404.995,
+        "max": 2067.696
+      },
+      "e2e_correction_en_offline": {
+        "count": 5,
+        "min": 864.317,
+        "p50": 922.56,
+        "p95": 1007.436,
+        "mean": 924.351,
+        "max": 1025.104
+      },
+      "e2e_cancel_en_offline": {
+        "count": 5,
+        "min": 620.509,
+        "p50": 779.129,
+        "p95": 841.314,
+        "mean": 764.153,
+        "max": 844.187
+      },
+      "e2e_budget_en_mock": {
+        "count": 5,
+        "min": 1369.346,
+        "p50": 1822.618,
+        "p95": 2282.333,
+        "mean": 1825.1,
+        "max": 2325.602
+      },
+      "e2e_correction_en_mock": {
+        "count": 5,
+        "min": 837.921,
+        "p50": 859.149,
+        "p95": 874.973,
+        "mean": 859.217,
+        "max": 878.006
+      },
+      "e2e_serve_jsonlines_offline": {
+        "count": 5,
+        "min": 678.71,
+        "p50": 734.678,
+        "p95": 787.757,
+        "mean": 735.088,
+        "max": 788.259
+      }
+    }
+  }
+}

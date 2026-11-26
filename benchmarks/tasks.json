@@ -1,0 +1,708 @@
+{
+  "schema_version": 1,
+  "name": "git-ontology-agent-core-benchmark",
+  "description": "Fixed task suite measuring relation classification, dependency invalidation, 3-way claim merge accuracy, and headless request processing latency.",
+  "relation_cases": [
+    {
+      "id": "rel_k1_budget_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2}
+      ],
+      "followup": "Oh, keep the budget under 500,000 won",
+      "expected_relation": "k1",
+      "tags": ["en", "k1", "supplement"]
+    },
+    {
+      "id": "rel_k1_budget_ko",
+      "lang": "ko",
+      "setup": [
+        {"message": "다음 주 부산 출장 일정 짜줘", "ticks": 2}
+      ],
+      "followup": "아 예산은 50만원 이하로",
+      "expected_relation": "k1",
+      "tags": ["ko", "k1", "supplement"]
+    },
+    {
+      "id": "rel_k1_budget_symbol_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 1}
+      ],
+      "followup": "Budget cap is ₩450,000",
+      "expected_relation": "k1",
+      "tags": ["en", "k1", "supplement"]
+    },
+    {
+      "id": "rel_k1_budget_krw_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 1}
+      ],
+      "followup": "Keep total under KRW 480,000",
+      "expected_relation": "k1",
+      "tags": ["en", "k1", "supplement"]
+    },
+    {
+      "id": "rel_k2_city_not_but_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2}
+      ],
+      "followup": "Actually, not Busan but Daegu",
+      "expected_relation": "k2",
+      "tags": ["en", "k2", "correction"]
+    },
+    {
+      "id": "rel_k2_city_malgo_ko",
+      "lang": "ko",
+      "setup": [
+        {"message": "다음 주 부산 출장 일정 짜줘", "ticks": 2}
+      ],
+      "followup": "아 부산 말고 대구야",
+      "expected_relation": "k2",
+      "tags": ["ko", "k2", "correction"]
+    },
+    {
+      "id": "rel_k2_city_instead_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 1}
+      ],
+      "followup": "Let's go to Daegu instead of Busan",
+      "expected_relation": "k2",
+      "tags": ["en", "k2", "correction"]
+    },
+    {
+      "id": "rel_k2_city_change_to_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 1}
+      ],
+      "followup": "Change the destination to Daegu",
+      "expected_relation": "k2",
+      "tags": ["en", "k2", "correction"]
+    },
+    {
+      "id": "rel_k2_city_change_ko",
+      "lang": "ko",
+      "setup": [
+        {"message": "다음 주 부산 출장 일정 짜줘", "ticks": 1}
+      ],
+      "followup": "대구 출장으로 바꿔줘",
+      "expected_relation": "k2",
+      "tags": ["ko", "k2", "correction"]
+    },
+    {
+      "id": "rel_k3_meeting_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2}
+      ],
+      "followup": "By the way, what time is tomorrow's meeting?",
+      "expected_relation": "k3",
+      "tags": ["en", "k3", "independent"]
+    },
+    {
+      "id": "rel_k3_meeting_ko",
+      "lang": "ko",
+      "setup": [
+        {"message": "다음 주 부산 출장 일정 짜줘", "ticks": 2}
+      ],
+      "followup": "근데 내일 회의 몇 시였지?",
+      "expected_relation": "k3",
+      "tags": ["ko", "k3", "independent"]
+    },
+    {
+      "id": "rel_k3_calendar_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 1}
+      ],
+      "followup": "Can you check my calendar for tomorrow?",
+      "expected_relation": "k3",
+      "tags": ["en", "k3", "independent"]
+    },
+    {
+      "id": "rel_k3_meeting_question_ko",
+      "lang": "ko",
+      "setup": [
+        {"message": "다음 주 부산 출장 일정 짜줘", "ticks": 1}
+      ],
+      "followup": "내일 미팅 일정 알려줄 수 있어?",
+      "expected_relation": "k3",
+      "tags": ["ko", "k3", "independent"]
+    },
+    {
+      "id": "rel_k4_cancel_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2}
+      ],
+      "followup": "The trip got cancelled, you can stop",
+      "expected_relation": "k4",
+      "tags": ["en", "k4", "cancel"]
+    },
+    {
+      "id": "rel_k4_cancel_ko",
+      "lang": "ko",
+      "setup": [
+        {"message": "다음 주 부산 출장 일정 짜줘", "ticks": 2}
+      ],
+      "followup": "아 출장 취소됐대. 그만해도 돼",
+      "expected_relation": "k4",
+      "tags": ["ko", "k4", "cancel"]
+    },
+    {
+      "id": "rel_k4_nevermind_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 1}
+      ],
+      "followup": "Never mind, forget it",
+      "expected_relation": "k4",
+      "tags": ["en", "k4", "cancel"]
+    },
+    {
+      "id": "rel_k5_progress_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2}
+      ],
+      "followup": "How far along are you?",
+      "expected_relation": "k5",
+      "tags": ["en", "k5", "progress"]
+    },
+    {
+      "id": "rel_k5_progress_ko",
+      "lang": "ko",
+      "setup": [
+        {"message": "다음 주 부산 출장 일정 짜줘", "ticks": 2}
+      ],
+      "followup": "어디까지 됐어?",
+      "expected_relation": "k5",
+      "tags": ["ko", "k5", "progress"]
+    },
+    {
+      "id": "rel_k5_status_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 1}
+      ],
+      "followup": "What's the current status?",
+      "expected_relation": "k5",
+      "tags": ["en", "k5", "progress"]
+    },
+    {
+      "id": "rel_multi_target_trip_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 1},
+        {"message": "What time is tomorrow's meeting?", "ticks": 0}
+      ],
+      "followup": "Keep the budget under 500,000 won",
+      "expected_relation": "k1",
+      "expected_target_branch": "req/1",
+      "tags": ["en", "k1", "multi_open"]
+    },
+    {
+      "id": "rel_clarify_apply_en",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 1}
+      ],
+      "followup": "Remember to include dinner near the station",
+      "expected_relation": "clarify",
+      "clarify_reply": "yes, apply to this one",
+      "expected_post_clarify_relation": "k1",
+      "tags": ["en", "clarify"]
+    },
+    {
+      "id": "rel_clarify_separate_ko",
+      "lang": "ko",
+      "setup": [
+        {"message": "다음 주 부산 출장 일정 짜줘", "ticks": 1}
+      ],
+      "followup": "내일 회의 시간 확인해줘",
+      "expected_relation": "clarify",
+      "clarify_reply": "별도로 처리해줘",
+      "expected_post_clarify_relation": "k3",
+      "tags": ["ko", "clarify"]
+    }
+  ],
+  "invalidation_cases": [
+    {
+      "id": "inv_budget_wildcard",
+      "mode": "state_invalidate",
+      "initial_claims": [
+        {"id": "req.1", "type": "Request", "value": "plan a Busan trip", "from": "req.1"},
+        {"id": "trip.city", "type": "Assumption", "value": "Busan", "from": "req.1"},
+        {"id": "plan.train", "type": "Decision", "value": "Tue 08:00 KTX", "from": "req.1", "depends_on": ["trip.city"]},
+        {"id": "hotel.candidates", "type": "Finding", "value": "A, B, C", "from": "req.1", "depends_on": ["trip.city", "constraint.*"]},
+        {"id": "plan.hotel", "type": "Decision", "value": "C", "from": "req.1", "depends_on": ["hotel.candidates", "constraint.*"]},
+        {"id": "plan.total", "type": "Decision", "value": "600k", "from": "req.1", "depends_on": ["plan.train", "plan.hotel"]}
+      ],
+      "add_claims": [
+        {"id": "constraint.budget", "type": "Constraint", "value": "500k", "from": "req.2"}
+      ],
+      "changed_ids": ["constraint.budget"],
+      "expected_invalid": ["hotel.candidates", "plan.hotel", "plan.total"],
+      "expected_confirmed": ["trip.city", "plan.train", "constraint.budget"]
+    },
+    {
+      "id": "inv_city_correction",
+      "mode": "state_correct",
+      "initial_claims": [
+        {"id": "req.1", "type": "Request", "value": "plan a Busan trip", "from": "req.1"},
+        {"id": "trip.city", "type": "Assumption", "value": "Busan", "from": "req.1"},
+        {"id": "constraint.budget", "type": "Constraint", "value": "500k", "from": "req.1"},
+        {"id": "plan.train", "type": "Decision", "value": "Tue 08:00 KTX", "from": "req.1", "depends_on": ["trip.city"]},
+        {"id": "hotel.candidates", "type": "Finding", "value": "A, B, C", "from": "req.1", "depends_on": ["trip.city", "constraint.*"]},
+        {"id": "plan.hotel", "type": "Decision", "value": "A", "from": "req.1", "depends_on": ["hotel.candidates", "constraint.*"]},
+        {"id": "plan.total", "type": "Decision", "value": "460k", "from": "req.1", "depends_on": ["plan.train", "plan.hotel"]}
+      ],
+      "correction": {"id": "trip.city", "type": "Assumption", "value": "Daegu", "from": "req.2"},
+      "expected_invalid": ["plan.train", "hotel.candidates", "plan.hotel", "plan.total"],
+      "expected_confirmed": ["constraint.budget", "trip.city"],
+      "expected_superseded_id": "trip.city#req.1",
+      "expected_prev": "Busan",
+      "expected_corrects": "req.1"
+    },
+    {
+      "id": "inv_no_dependents",
+      "mode": "state_invalidate",
+      "initial_claims": [
+        {"id": "trip.city", "type": "Assumption", "value": "Busan", "from": "req.1"},
+        {"id": "plan.train", "type": "Decision", "value": "Tue 08:00 KTX", "from": "req.1", "depends_on": ["trip.city"]}
+      ],
+      "add_claims": [
+        {"id": "note.wifi", "type": "Constraint", "value": "free wifi", "from": "req.2"}
+      ],
+      "changed_ids": ["note.wifi"],
+      "expected_invalid": [],
+      "expected_confirmed": ["trip.city", "plan.train", "note.wifi"]
+    },
+    {
+      "id": "inv_deep_chain",
+      "mode": "state_invalidate",
+      "initial_claims": [
+        {"id": "node.a", "type": "Assumption", "value": "1", "from": "req.1"},
+        {"id": "node.b", "type": "Finding", "value": "2", "from": "req.1", "depends_on": ["node.a"]},
+        {"id": "node.c", "type": "Finding", "value": "3", "from": "req.1", "depends_on": ["node.b"]},
+        {"id": "node.d", "type": "Decision", "value": "4", "from": "req.1", "depends_on": ["node.c"]},
+        {"id": "node.e", "type": "Decision", "value": "5", "from": "req.1", "depends_on": ["node.d"]},
+        {"id": "side.x", "type": "Decision", "value": "keep", "from": "req.1"}
+      ],
+      "add_claims": [],
+      "changed_ids": ["node.a"],
+      "expected_invalid": ["node.b", "node.c", "node.d", "node.e"],
+      "expected_confirmed": ["node.a", "side.x"]
+    },
+    {
+      "id": "inv_diamond_graph",
+      "mode": "state_invalidate",
+      "initial_claims": [
+        {"id": "root", "type": "Assumption", "value": "v1", "from": "req.1"},
+        {"id": "left", "type": "Finding", "value": "l", "from": "req.1", "depends_on": ["root"]},
+        {"id": "right", "type": "Finding", "value": "r", "from": "req.1", "depends_on": ["root"]},
+        {"id": "leaf", "type": "Decision", "value": "lr", "from": "req.1", "depends_on": ["left", "right"]},
+        {"id": "sibling", "type": "Decision", "value": "s", "from": "req.1"}
+      ],
+      "add_claims": [],
+      "changed_ids": ["root"],
+      "expected_invalid": ["left", "right", "leaf"],
+      "expected_confirmed": ["root", "sibling"]
+    },
+    {
+      "id": "inv_cycle_guard",
+      "mode": "state_invalidate",
+      "initial_claims": [
+        {"id": "c1", "type": "Assumption", "value": "1", "from": "req.1", "depends_on": ["c2"]},
+        {"id": "c2", "type": "Decision", "value": "2", "from": "req.1", "depends_on": ["c1"]},
+        {"id": "c3", "type": "Decision", "value": "3", "from": "req.1", "depends_on": ["c2"]},
+        {"id": "indep", "type": "Decision", "value": "ok", "from": "req.1"}
+      ],
+      "add_claims": [],
+      "changed_ids": ["c1"],
+      "expected_invalid": ["c1", "c2", "c3"],
+      "expected_confirmed": ["indep"]
+    },
+    {
+      "id": "inv_skip_request_and_progress",
+      "mode": "state_invalidate",
+      "initial_claims": [
+        {"id": "req.1", "type": "Request", "value": "trip", "from": "req.1", "depends_on": ["trip.city"]},
+        {"id": "progress.step", "type": "Progress", "value": "working", "from": "req.1", "depends_on": ["trip.city"]},
+        {"id": "trip.city", "type": "Assumption", "value": "Busan", "from": "req.1"},
+        {"id": "plan.train", "type": "Decision", "value": "KTX", "from": "req.1", "depends_on": ["trip.city"]}
+      ],
+      "add_claims": [],
+      "changed_ids": ["trip.city"],
+      "expected_invalid": ["plan.train"],
+      "expected_confirmed": ["req.1", "progress.step", "trip.city"]
+    },
+    {
+      "id": "inv_wildcard_prefix_boundary",
+      "mode": "state_invalidate",
+      "initial_claims": [
+        {"id": "trip.dates", "type": "Assumption", "value": "Tue-Thu", "from": "req.1"},
+        {"id": "plan.train", "type": "Decision", "value": "KTX", "from": "req.1", "depends_on": ["trip.*"]},
+        {"id": "trip2.note", "type": "Finding", "value": "note", "from": "req.1", "depends_on": ["trip2.*"]},
+        {"id": "other.item", "type": "Decision", "value": "x", "from": "req.1", "depends_on": ["other.*"]}
+      ],
+      "add_claims": [],
+      "changed_ids": ["trip.dates"],
+      "expected_invalid": ["plan.train"],
+      "expected_confirmed": ["trip.dates", "trip2.note", "other.item"]
+    },
+    {
+      "id": "inv_agent_supplement_flow",
+      "mode": "agent_flow",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2}
+      ],
+      "followup": "Oh, keep the budget under 500,000 won",
+      "branch": "req/1",
+      "expected_invalid": ["hotel.candidates"],
+      "expected_confirmed": ["trip.city", "plan.train", "constraint.budget"],
+      "expected_after_run_confirmed": ["plan.train", "hotel.candidates", "plan.hotel", "plan.total"],
+      "expected_preserved_from": {"plan.train": "req.1", "constraint.budget": "req.2"}
+    },
+    {
+      "id": "inv_agent_correction_flow",
+      "mode": "agent_flow",
+      "lang": "en",
+      "setup": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2}
+      ],
+      "followup": "Actually, not Busan but Daegu",
+      "branch": "req/1",
+      "expected_invalid": ["plan.train", "hotel.candidates"],
+      "expected_confirmed": ["trip.city"],
+      "expected_superseded_id": "trip.city#req.1",
+      "expected_after_run_confirmed": ["trip.city", "plan.train", "hotel.candidates", "plan.hotel", "plan.total"],
+      "expected_preserved_from": {"trip.city": "req.2"}
+    }
+  ],
+  "merge_cases": [
+    {
+      "id": "merge_theirs_only_change",
+      "base": [{"id": "x.v", "type": "Decision", "value": "a", "from": "req.1", "at": 1}],
+      "ours": [{"id": "x.v", "type": "Decision", "value": "a", "from": "req.1", "at": 1}],
+      "theirs": [{"id": "x.v", "type": "Decision", "value": "b", "from": "req.2", "at": 2}],
+      "expected_claims": {"x.v": {"value": "b", "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_ours_only_change",
+      "base": [{"id": "x.v", "type": "Decision", "value": "a", "from": "req.1", "at": 1}],
+      "ours": [{"id": "x.v", "type": "Decision", "value": "m", "from": "req.2", "at": 2}],
+      "theirs": [{"id": "x.v", "type": "Decision", "value": "a", "from": "req.1", "at": 1}],
+      "expected_claims": {"x.v": {"value": "m", "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_same_change_both_sides",
+      "base": [{"id": "x.v", "type": "Decision", "value": "a", "from": "req.1", "at": 1}],
+      "ours": [{"id": "x.v", "type": "Decision", "value": "b", "from": "req.2", "at": 2}],
+      "theirs": [{"id": "x.v", "type": "Decision", "value": "b", "from": "req.2", "at": 2}],
+      "expected_claims": {"x.v": {"value": "b", "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_disjoint_additions",
+      "base": [],
+      "ours": [{"id": "meeting.tomorrow", "type": "Finding", "value": "2:00 PM", "from": "req.3", "at": 3}],
+      "theirs": [{"id": "plan.hotel", "type": "Decision", "value": "Hotel A", "from": "req.1", "at": 4}],
+      "expected_claims": {
+        "meeting.tomorrow": {"value": "2:00 PM", "status": "confirmed"},
+        "plan.hotel": {"value": "Hotel A", "status": "confirmed"}
+      },
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_delete_on_main_untouched_branch",
+      "base": [{"id": "old.note", "type": "Finding", "value": "stale", "from": "req.1", "at": 1}],
+      "ours": [],
+      "theirs": [{"id": "old.note", "type": "Finding", "value": "stale", "from": "req.1", "at": 1}],
+      "expected_claims": {},
+      "expected_absent": ["old.note"],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_delete_on_branch_changed_main",
+      "base": [{"id": "item.x", "type": "Finding", "value": "v1", "from": "req.1", "at": 1}],
+      "ours": [{"id": "item.x", "type": "Finding", "value": "v2", "from": "req.2", "at": 2}],
+      "theirs": [],
+      "expected_claims": {"item.x": {"value": "v2", "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_constraint_stack_scalars",
+      "base": [],
+      "ours": [{"id": "constraint.depart", "type": "Constraint", "value": "morning", "from": "req.2", "at": 2}],
+      "theirs": [{"id": "constraint.depart", "type": "Constraint", "value": "before 9", "from": "req.3", "at": 3}],
+      "expected_claims": {"constraint.depart": {"value": ["morning", "before 9"], "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_constraint_stack_dedup_list",
+      "base": [],
+      "ours": [{"id": "constraint.trip", "type": "Constraint", "value": ["morning", "500k"], "from": "req.2", "at": 2}],
+      "theirs": [{"id": "constraint.trip", "type": "Constraint", "value": ["500k", "window"], "from": "req.3", "at": 3}],
+      "expected_claims": {"constraint.trip": {"value": ["morning", "500k", "window"], "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_assumption_correction_wins",
+      "base": [{"id": "trip.city", "type": "Assumption", "value": "Busan", "from": "req.1", "at": 1}],
+      "ours": [{"id": "trip.city", "type": "Assumption", "value": "Seoul", "from": "req.2", "at": 5}],
+      "theirs": [{"id": "trip.city", "type": "Assumption", "value": "Daegu", "from": "req.3", "at": 2, "corrects": "req.1"}],
+      "expected_claims": {"trip.city": {"value": "Daegu", "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_finding_theirs_later_clock_wins",
+      "base": [{"id": "seat.ktx", "type": "Finding", "value": "unknown", "from": "req.1", "at": 1}],
+      "ours": [{"id": "seat.ktx", "type": "Finding", "value": "available", "from": "req.2", "at": 2}],
+      "theirs": [{"id": "seat.ktx", "type": "Finding", "value": "sold out", "from": "req.3", "at": 4}],
+      "expected_claims": {"seat.ktx": {"value": "sold out", "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_finding_ours_later_clock_wins",
+      "base": [{"id": "seat.ktx", "type": "Finding", "value": "unknown", "from": "req.1", "at": 1}],
+      "ours": [{"id": "seat.ktx", "type": "Finding", "value": "reopened", "from": "req.4", "at": 9}],
+      "theirs": [{"id": "seat.ktx", "type": "Finding", "value": "sold out", "from": "req.3", "at": 4}],
+      "expected_claims": {"seat.ktx": {"value": "reopened", "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_progress_never_merged",
+      "base": [],
+      "ours": [],
+      "theirs": [
+        {"id": "progress.step", "type": "Progress", "value": "picking hotel", "from": "req.1", "at": 2},
+        {"id": "plan.hotel", "type": "Decision", "value": "Hotel A", "from": "req.1", "at": 3}
+      ],
+      "expected_claims": {"plan.hotel": {"value": "Hotel A", "status": "confirmed"}},
+      "expected_absent": ["progress.step"],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_decision_invalid_loses",
+      "base": [{"id": "plan.hotel", "type": "Decision", "value": "A", "from": "req.1", "at": 1}],
+      "ours": [{"id": "plan.hotel", "type": "Decision", "value": "B", "from": "req.2", "status": "invalid", "at": 2}],
+      "theirs": [{"id": "plan.hotel", "type": "Decision", "value": "C", "from": "req.3", "status": "confirmed", "at": 3}],
+      "expected_claims": {"plan.hotel": {"value": "C", "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_requests_all_kept",
+      "base": [],
+      "ours": [{"id": "req.3", "type": "Request", "value": "meeting?", "from": "req.3", "at": 3}],
+      "theirs": [
+        {"id": "req.1", "type": "Request", "value": "trip", "from": "req.1", "at": 1},
+        {"id": "req.2", "type": "Request", "value": "budget", "from": "req.2", "at": 2}
+      ],
+      "expected_claims": {
+        "req.1": {"value": "trip", "status": "confirmed"},
+        "req.2": {"value": "budget", "status": "confirmed"},
+        "req.3": {"value": "meeting?", "status": "confirmed"}
+      },
+      "expected_absent": [],
+      "expected_conflict_count": 0,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_conflict_resolved_at_threshold",
+      "base": [{"id": "plan.hotel", "type": "Decision", "value": "A", "from": "req.1", "at": 1}],
+      "ours": [{"id": "plan.hotel", "type": "Decision", "value": "B", "from": "req.2", "at": 2}],
+      "theirs": [{"id": "plan.hotel", "type": "Decision", "value": "C", "from": "req.3", "at": 3}],
+      "judge_score": 0.7,
+      "threshold": 0.7,
+      "expected_claims": {"plan.hotel": {"value": "C", "status": "confirmed"}},
+      "expected_absent": [],
+      "expected_conflict_count": 1,
+      "expected_unresolved_count": 0
+    },
+    {
+      "id": "merge_conflict_unresolved_below_threshold",
+      "base": [{"id": "plan.hotel", "type": "Decision", "value": "A", "from": "req.1", "at": 1}],
+      "ours": [{"id": "plan.hotel", "type": "Decision", "value": "B", "from": "req.2", "at": 2}],
+      "theirs": [{"id": "plan.hotel", "type": "Decision", "value": "C", "from": "req.3", "at": 3}],
+      "judge_score": 0.69,
+      "threshold": 0.7,
+      "expected_claims": {"plan.hotel": {"status": "conflict", "alternatives": ["B", "C"]}},
+      "expected_absent": [],
+      "expected_conflict_count": 1,
+      "expected_unresolved_count": 1
+    }
+  ],
+  "scenario_cases": [
+    {
+      "id": "e2e_budget_en_offline",
+      "mode": "agent",
+      "lang": "en",
+      "llm": "offline",
+      "decision": "local",
+      "mock": false,
+      "turns": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2},
+        {"message": "Oh, keep the budget under 500,000 won", "ticks": 0},
+        {"message": "By the way, what time is tomorrow's meeting?", "ticks": null}
+      ],
+      "expected_relations": ["", "k1", "k3", "k3", ""],
+      "expected_final_substrings": [
+        "Hotel A (2 nights, ₩180,000)",
+        "total ₩460,000 (within the ₩500,000 budget)",
+        "came from your second request"
+      ],
+      "expected_merges": 2,
+      "expected_cancelled_branches": []
+    },
+    {
+      "id": "e2e_budget_ko_offline",
+      "mode": "agent",
+      "lang": "ko",
+      "llm": "offline",
+      "decision": "local",
+      "mock": false,
+      "turns": [
+        {"message": "다음 주 부산 출장 일정 짜줘", "ticks": 2},
+        {"message": "아 예산은 50만원 이하로", "ticks": 0},
+        {"message": "근데 내일 회의 몇 시였지?", "ticks": null}
+      ],
+      "expected_relations": ["", "k1", "k3", "k3", ""],
+      "expected_final_substrings": [
+        "합계 46만원(예산 50만원 안)",
+        "두 번째 요청에서 반영했습니다"
+      ],
+      "expected_merges": 2,
+      "expected_cancelled_branches": []
+    },
+    {
+      "id": "e2e_correction_en_offline",
+      "mode": "agent",
+      "lang": "en",
+      "llm": "offline",
+      "decision": "local",
+      "mock": false,
+      "turns": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2},
+        {"message": "Actually, not Busan but Daegu", "ticks": null}
+      ],
+      "expected_relations": ["", "k2", ""],
+      "expected_final_substrings": [
+        "Tue 08:30 KTX (Seoul→Dongdaegu)",
+        "Hotel B (2 nights, ₩160,000)",
+        "changed to Daegu in your second request"
+      ],
+      "expected_merges": 1,
+      "expected_cancelled_branches": []
+    },
+    {
+      "id": "e2e_cancel_en_offline",
+      "mode": "agent",
+      "lang": "en",
+      "llm": "offline",
+      "decision": "local",
+      "mock": false,
+      "turns": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2},
+        {"message": "How far along are you?", "ticks": 0},
+        {"message": "The trip got cancelled, you can stop", "ticks": null}
+      ],
+      "expected_relations": ["", "k5", "k4"],
+      "expected_final_substrings": [
+        "Stopped the Busan trip plan",
+        "stays in history only"
+      ],
+      "expected_merges": 0,
+      "expected_cancelled_branches": ["cancelled/req/1"]
+    },
+    {
+      "id": "e2e_budget_en_mock",
+      "mode": "agent",
+      "lang": "en",
+      "llm": "anthropic",
+      "decision": "typesafe",
+      "mock": true,
+      "turns": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2},
+        {"message": "Oh, keep the budget under 500,000 won", "ticks": 0},
+        {"message": "By the way, what time is tomorrow's meeting?", "ticks": null}
+      ],
+      "expected_relations": ["", "k1", "k3", "k3", ""],
+      "expected_final_substrings": [
+        "Hotel A (2 nights, ₩180,000)",
+        "total ₩460,000 (within the ₩500,000 budget)",
+        "came from your second request"
+      ],
+      "expected_merges": 2,
+      "expected_cancelled_branches": []
+    },
+    {
+      "id": "e2e_correction_en_mock",
+      "mode": "agent",
+      "lang": "en",
+      "llm": "gemini",
+      "decision": "openai",
+      "mock": true,
+      "turns": [
+        {"message": "Plan my Busan business trip next week", "ticks": 2},
+        {"message": "Actually, not Busan but Daegu", "ticks": null}
+      ],
+      "expected_relations": ["", "k2", ""],
+      "expected_final_substrings": [
+        "Tue 08:30 KTX (Seoul→Dongdaegu)",
+        "Hotel B (2 nights, ₩160,000)",
+        "changed to Daegu in your second request"
+      ],
+      "expected_merges": 1,
+      "expected_cancelled_branches": []
+    },
+    {
+      "id": "e2e_serve_jsonlines_offline",
+      "mode": "serve",
+      "lang": "en",
+      "llm": "offline",
+      "decision": "local",
+      "mock": false,
+      "messages": [
+        "Plan my Busan business trip next week",
+        "Oh, keep the budget under 500,000 won"
+      ],
+      "expected_final_substrings": [
+        "Hotel A (2 nights, ₩180,000)",
+        "total ₩460,000 (within the ₩500,000 budget)"
+      ],
+      "expected_merges": 1
+    }
+  ]
+}

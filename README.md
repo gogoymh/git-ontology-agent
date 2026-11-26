@@ -385,6 +385,19 @@ npm --prefix ui install && npm --prefix ui test # the UI, against a scripted and
 GOA_LOG=debug goa demo                          # English logs for every step
 ```
 
+### Benchmark
+
+55 fixed cases in [`benchmarks/tasks.json`](benchmarks/tasks.json) score relation judgment, invalidation, 3-way merge and end-to-end scenarios, plus p50 latency for submit, tick, a full scenario and a `goa serve` round-trip. No network, no window focus.
+
+```bash
+python3 scripts/benchmark.py --compare            # run and compare with benchmarks/baseline.json; exit 1 on regression
+python3 scripts/benchmark.py --write-baseline     # record a new baseline after an intended change
+python3 scripts/benchmark.py --compare-files old.json new.json   # compare two saved results
+python3 scripts/benchmark.py --suite merge --case <id> --json    # reproduce one case
+```
+
+A regression prints the metric, suspect modules and the exact command to reproduce it. Defaults allow no accuracy drop and up to +50% and +50 ms on p50 latency.
+
 The UI ships only permissively licensed packages (MIT, ISC); `node ui/scripts/license-check.mjs` fails the build otherwise.
 
 The banner is built by `scripts/make_banner.py` from Codex-generated art; candidates live in [`docs/assets/candidates`](docs/assets/candidates).
