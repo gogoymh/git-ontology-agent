@@ -84,15 +84,17 @@ class Agent:
         self.skills = skills or default_skills(self.llm, self.lang)
         self.responder = Responder(self.llm, self.lang)
         self.tasks: List[Task] = []
+        self._restore()
         main = self.repo.read_state("main")
-        self.n = max([int(c.id.split(".")[1]) for c in main.of(REQUEST) if c.id.split(".")[-1].isdigit()] +
+        states = [main] + [self.repo.read_state(t.branch) for t in self.open_tasks()]
+        self.n = max([_req_num(c.id) for st in states for c in st.of(REQUEST)] +
                      [int(b.split("/")[-1]) for b in self.repo.branches() if b.split("/")[-1].isdigit()] + [0])
-        self.clock = main.clock()
+        self.clock = max((st.clock() for st in states), default=0)
         self.pending: Optional[Dict[str, Any]] = None
         self.answers: List[Answer] = []
         self.lock = threading.RLock()
-        _log.info("agent ready repo=%s llm=%s decision=%s lang=%s", self.repo.path, self.llm.name,
-                  self.decision.name, self.lang)
+        _log.info("agent ready repo=%s llm=%s decision=%s lang=%s open=%d", self.repo.path, self.llm.name,
+                  self.decision.name, self.lang, len(self.open_tasks()))
 
     # --- public -------------------------------------------------------------------
     def submit(self, text: str) -> List[Answer]:
@@ -357,6 +359,103 @@ class Agent:
             return self.repo.git("show", "main:policy.yaml")
         except RuntimeError:
             return DEFAULT_POLICY
+
+    def _restore(self) -> None:
+        """Rebuild in-progress tasks from unmerged `req/*` branches so work resumes after restart."""
+        req_branches: List[Tuple[int, str]] = []
+        for b in self.repo.branches("req/"):
+            parts = b.split("/")
+            if len(parts) == 2 and parts[1].isdigit():
+                req_branches.append((int(parts[1]), b))
+        req_branches.sort()
+        open_branches: List[Tuple[int, str]] = []
+        merged_branches: List[Tuple[int, str]] = []
+        for n, branch in req_branches:
+            if self.repo.is_ancestor(branch, "main"):
+                merged_branches.append((n, branch))
+            else:
+                open_branches.append((n, branch))
+        if not open_branches:
+            return
+        finalized = self._finalized_requests()
+        merge_bases = {p2: self.repo.merge_base(p1, p2) for _, p1, p2 in self.repo.merges("main")}
+        for n, branch in merged_branches:
+            if f"req.{n}" in finalized:
+                continue
+            sha = self.repo.rev(branch)
+            base = merge_bases.get(sha or "")
+            if not base:
+                continue
+            task = self._restore_task(n, branch, base, status="merged")
+            if task and not task.independent:
+                self.tasks.append(task)
+        for n, branch in open_branches:
+            task = self._restore_task(n, branch, self.repo.merge_base("main", branch), status="open")
+            if task:
+                self.tasks.append(task)
+        self.tasks.sort(key=lambda t: t.n)
+        open_ = self.open_tasks()
+        if open_:
+            _log.info("restored %d open task(s): %s", len(open_), [t.branch for t in open_])
+
+    def _restore_task(self, n: int, branch: str, base: str, status: str = "open") -> Optional[Task]:
+        commits = self.repo.log(f"{base}..refs/heads/{branch}", n=200)
+        if not commits:
+            return None
+        base_state = self.repo.read_state(base)
+        state = self.repo.read_state(branch)
+        req_id = f"req.{n}"
+        req_claims = sorted((c for c in state.of(REQUEST) if base_state.get(c.id) is None),
+                            key=lambda c: (_req_num(c.id), c.at))
+        primary = state.get(req_id) or (req_claims[0] if req_claims else None)
+        if primary is not None:
+            text = str(primary.value)
+        else:
+            subject = commits[-1][1].splitlines()[0] if commits[-1][1] else ""
+            text = subject.partition(": open (")[2].rstrip(")") or subject
+        requests = [c.id for c in req_claims]
+        if req_id not in requests:
+            requests.insert(0, req_id)
+        open_trailers = _trailers(commits[-1][1])
+        independent = open_trailers.get("Relation", "").startswith("k3")
+        skill = self._route(text)
+        title = skill.title(text)
+        for _, body in reversed(commits[:-1]):
+            subj = body.splitlines()[0] if body else ""
+            tr = _trailers(body)
+            if tr.get("Relation", "").startswith("k2") and not subj.endswith(": note"):
+                c = state.get(tr.get("Request", ""))
+                if c is not None and skill.owns(str(c.value)):
+                    title = skill.title(str(c.value))
+        return Task(n=n, text=text, skill=skill, base=base, independent=independent,
+                    status=status, requests=requests, title=title)
+
+    def _finalized_requests(self) -> set:
+        done = set()
+        if not self.repo.rev("answers"):
+            return done
+        for _, body in self.repo.log("answers", n=500):
+            tr = _trailers(body)
+            if tr.get("Answer") == "final":
+                for r in tr.get("Request", "").split(","):
+                    if r.strip():
+                        done.add(r.strip())
+        return done
+
+
+def _trailers(body: str) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    for line in body.splitlines()[1:]:
+        if ": " in line:
+            k, _, v = line.partition(": ")
+            if k and not k[0].isspace():
+                out[k.strip()] = v.strip()
+    return out
+
+
+def _req_num(cid: str) -> int:
+    head, _, tail = cid.rpartition(".")
+    return int(tail) if head == "req" and tail.isdigit() else 0
 
 
 def _policy(text: str) -> Dict[str, float]:
