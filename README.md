@@ -399,6 +399,12 @@ python3 scripts/benchmark.py --suite merge --case <id> --json    # reproduce one
 
 A regression prints the metric, suspect modules and the exact command to reproduce it. Defaults allow no accuracy drop and up to +50% and +50 ms on p50 latency.
 
+Every merge into `preconquer-gogoymh` is benchmarked by [`scripts/bench_watch.py`](scripts/bench_watch.py): it exports the merged commit with `git archive`, runs the suite headless and compares with the previous run. A latency flag is re-measured side by side against the previous commit, so machine load alone never files a regression. Results live in `.git/goa-bench/`; a confirmed drop writes `regression.md`, which a Preconquer workflow turns into an issue.
+
+```bash
+git show preconquer-gogoymh:scripts/bench_watch.py | python3 - --ref preconquer-gogoymh
+```
+
 The UI ships only permissively licensed packages (MIT, ISC); `node ui/scripts/license-check.mjs` fails the build otherwise.
 
 The banner is built by `scripts/make_banner.py` from Codex-generated art; candidates live in [`docs/assets/candidates`](docs/assets/candidates).
