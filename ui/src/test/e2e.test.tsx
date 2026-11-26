@@ -189,6 +189,60 @@ test('resumes an open req branch across /connect model switch without racing', {
 		assert.match(f, /● Here is your plan: Tue 08:00 KTX \(Seoul→Busan\)/);
 		assert.match(f, /final · main@[0-9a-f]{7}/);
 		assert.doesNotMatch(f, /✕/);
+		assert.equal(f.split('R1 › Plan my Busan business trip next week').length - 1, 1, `history duplicated after /connect:\n${f}`);
+	} finally {
+		ui.unmount();
+		await new Promise(r => setTimeout(r, 300));
+		rmSync(dir, {recursive: true, force: true});
+	}
+});
+
+test('restores previous turns in order after UI restart and appends resumed and new turns', {timeout: 120_000}, async () => {
+	const dir = mkdtempSync(join(tmpdir(), 'goa-ui-history-'));
+	const repo = join(dir, 'conv');
+	process.env['GOA_CONFIG'] = join(dir, 'config');
+	const py = python();
+	execFileSync(
+		py.cmd,
+		[
+			'-c',
+			[
+				'import sys',
+				'from goa import Agent',
+				'a = Agent(sys.argv[1], lang="en")',
+				'a.submit("What time is tomorrow\'s meeting?")',
+				'a.run()',
+				'a.submit("Plan my Busan business trip next week")',
+				'a.tick()',
+				'a.tick()',
+				'a.submit("Oh, keep the budget under 500,000 won")',
+			].join('; '),
+			repo,
+		],
+		{cwd: dir, env: py.env},
+	);
+	const ui = render(
+		<App
+			boot={{llm: 'offline', decision: 'local', lang: 'en'}}
+			deps={{listConnections, saveDefault, start: (l, d) => spawnEngine(['--llm', l, '--decision', d, '--lang', 'en', '--repo', repo], dir)}}
+		/>,
+	);
+	try {
+		let f = await frameWith(ui.lastFrame, 'Here is your plan', 45_000);
+		const order = [
+			f.indexOf("R1 › What time is tomorrow's meeting?"),
+			f.indexOf("Here is what I found: Tomorrow's meeting at 2:00 PM."),
+			f.indexOf('R2 › Plan my Busan business trip next week'),
+			f.indexOf('R3 › Oh, keep the budget under 500,000 won'),
+			f.indexOf('Here is your plan: Tue 08:00 KTX (Seoul→Busan)'),
+		];
+		assert.ok(order.every(i => i >= 0), `missing restored turns:\n${f}`);
+		for (let i = 1; i < order.length; i++) assert.ok(order[i - 1]! < order[i]!, `restored turns out of order at ${i}:\n${f}`);
+		assert.match(f, /within the ₩500,000 budget/);
+
+		await type(ui.stdin, 'Plan my Daegu business trip next week', KEY.enter);
+		f = await frameWith(ui.lastFrame, /R4 › Plan my Daegu business trip next week/, 45_000);
+		assert.ok(f.indexOf('Here is your plan: Tue 08:00 KTX (Seoul→Busan)') < f.indexOf('R4 › Plan my Daegu business trip next week'));
 	} finally {
 		ui.unmount();
 		await new Promise(r => setTimeout(r, 300));

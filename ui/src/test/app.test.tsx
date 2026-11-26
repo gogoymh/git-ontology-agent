@@ -82,3 +82,53 @@ test('speaks Korean when the engine does', async () => {
 	assert.match(f, /작업 중에도 언제든 말을 걸 수 있습니다/);
 	ui.unmount();
 });
+
+test('restores previous conversation history in order and skips duplicates on /connect', async () => {
+	const engines = [new FakeEngine(), new FakeEngine()];
+	let starts = 0;
+	const ui = render(
+		<App
+			boot={{llm: 'offline'}}
+			deps={{
+				listConnections: async () => auth('saved'),
+				saveDefault: async () => {},
+				start: () => engines[starts++]!,
+			}}
+		/>,
+	);
+	const history = {
+		type: 'history' as const,
+		items: [
+			{type: 'user' as const, n: 1, text: 'Plan my Busan trip'},
+			{type: 'answer' as const, kind: 'interim' as const, text: "Got it, I've started.", request: 'req.1', relation: '', relation_name: '', source: 'req/1@1111111', commit: 'a1'},
+			{type: 'answer' as const, kind: 'final' as const, text: 'Here is your plan: Hotel A.', request: 'req.1', relation: '', relation_name: '', source: 'main@2222222', commit: 'a2'},
+			{type: 'user' as const, n: 2, text: "What time is tomorrow's meeting?"},
+			{type: 'answer' as const, kind: 'interim' as const, text: "Checking tomorrow's meeting.", request: 'req.2', relation: '', relation_name: '', source: 'req/2@3333333', commit: 'a3'},
+		],
+	};
+	engines[0]!.emit({...READY, llm: 'offline'} as typeof READY);
+	engines[0]!.emit(history);
+	let f = await frameWith(ui.lastFrame, "Checking tomorrow's meeting.");
+	const order = [
+		f.indexOf('R1 › Plan my Busan trip'),
+		f.indexOf("Got it, I've started."),
+		f.indexOf('Here is your plan: Hotel A.'),
+		f.indexOf("R2 › What time is tomorrow's meeting?"),
+		f.indexOf("Checking tomorrow's meeting."),
+	];
+	assert.ok(order.every(i => i >= 0), `missing history lines:\n${f}`);
+	for (let i = 1; i < order.length; i++) assert.ok(order[i - 1]! < order[i]!, `out of order at ${i}:\n${f}`);
+
+	engines[0]!.emit({type: 'answer', kind: 'final', text: 'Here is what I found: 2:00 PM.', request: 'req.2', relation: '', relation_name: '', source: 'main@4444444', commit: 'a4'});
+	f = await frameWith(ui.lastFrame, 'Here is what I found: 2:00 PM.');
+	assert.ok(f.indexOf("Checking tomorrow's meeting.") < f.indexOf('Here is what I found: 2:00 PM.'));
+
+	await type(ui.stdin, '/connect', KEY.enter);
+	await frameWith(ui.lastFrame, 'Connect a model');
+	await type(ui.stdin, KEY.enter);
+	engines[1]!.emit(READY);
+	engines[1]!.emit(history);
+	f = await frameWith(ui.lastFrame, 'Connected');
+	assert.equal(f.split('R1 › Plan my Busan trip').length - 1, 1, `history duplicated on /connect:\n${f}`);
+	ui.unmount();
+});

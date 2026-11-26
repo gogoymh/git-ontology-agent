@@ -138,15 +138,50 @@ class Repo:
     def merge_commit(self, branch: str, state: State, subject: str, trailers: Dict[str, str]) -> str:
         return self.commit_state("main", state, subject, trailers, extra_parent=self.rev(branch))
 
-    def record_answer(self, kind: str, text: str, source: str, extra: Dict[str, str]) -> str:
+    def record_answer(self, kind: str, text: str, source: str, extra: Dict[str, str],
+                      user_text: str = "") -> str:
         """Answers live on their own branch so they never disturb state, yet stay replayable."""
         head = self.rev(ANSWERS)
-        tree = self._tree({"answer.txt": text + "\n"})
+        files = {"answer.txt": text + "\n"}
+        if user_text:
+            files["user.txt"] = user_text + "\n"
+        tree = self._tree(files)
         first = text.splitlines()[0] if text else ""
         sha = self._commit(tree, [head] if head else [],
                            _message(f"answer({kind}): {first[:60]}", {"Answer": kind, "Source": source, **extra}))
         self._set(ANSWERS, sha, head)
         return sha
+
+    def read_blobs(self, specs: List[str]) -> Dict[str, Optional[str]]:
+        """Read many `<rev>:<path>` blobs in one plumbing call; missing blobs map to None."""
+        if not specs:
+            return {}
+        env = {**os.environ, **_ENV}
+        res = subprocess.run(
+            ["git", "-C", self.path, "cat-file", "--batch"],
+            input=("\n".join(specs) + "\n").encode("utf-8"),
+            capture_output=True, env=env,
+        )
+        if res.returncode != 0:
+            raise RuntimeError(f"git cat-file --batch failed: {res.stderr.decode('utf-8', 'replace').strip()}")
+        out: Dict[str, Optional[str]] = {}
+        data = res.stdout
+        pos = 0
+        for spec in specs:
+            nl = data.find(b"\n", pos)
+            if nl < 0:
+                out[spec] = None
+                continue
+            header = data[pos:nl].decode("utf-8", "replace")
+            pos = nl + 1
+            parts = header.split()
+            if len(parts) == 3 and parts[1] == "blob" and parts[2].isdigit():
+                size = int(parts[2])
+                out[spec] = data[pos:pos + size].decode("utf-8", "replace")
+                pos += size + 1  # trailing newline after blob payload
+            else:
+                out[spec] = None
+        return out
 
     def branches(self, prefix: str = "") -> List[str]:
         out = self.git("for-each-ref", "--format=%(refname:short)", f"refs/heads/{prefix}")

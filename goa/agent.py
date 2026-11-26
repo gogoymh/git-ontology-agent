@@ -114,7 +114,8 @@ class Agent:
             target, rel, conf = self._judge(text, open_)
             if conf < self.policy["relation_confidence"]:
                 self.pending = {"text": text, "n": self.n, "target": target}
-                return [self._say("interim", {"kind": "clarify", "target": target.title}, target, req, rel, conf)]
+                return [self._say("interim", {"kind": "clarify", "target": target.title}, target, req, rel, conf,
+                                  user_text=text)]
             return self._apply(rel, conf, text, self.n, target)
 
     def tick(self) -> List[Answer]:
@@ -152,6 +153,61 @@ class Agent:
 
     def busy(self) -> bool:
         return bool(self.open_tasks())
+
+    def history(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Recent conversation turns (user messages and answers) read from git in chronological order."""
+        if limit <= 0:
+            return []
+        with self.lock:
+            if not self.repo.rev("answers"):
+                return []
+            req_texts: Dict[str, str] = {}
+            refs = ["main"] + [t.branch for t in self.open_tasks()] + self.repo.branches("cancelled/req/")
+            for ref in refs:
+                for c in self.repo.read_state(ref).of(REQUEST):
+                    if c.id not in req_texts and c.value is not None:
+                        req_texts[c.id] = str(c.value)
+            commits = list(reversed(self.repo.log("answers", n=limit)))
+            if not commits:
+                return []
+            specs = [f"{sha}:{name}" for sha, _ in commits for name in ("answer.txt", "user.txt")]
+            blobs = self.repo.read_blobs(specs)
+            items: List[Dict[str, Any]] = []
+            seen: set = set()
+            max_n = 0
+            for sha, body in commits:
+                tr = _trailers(body)
+                kind = tr.get("Answer", "")
+                if kind not in ("interim", "final"):
+                    continue
+                req_field = tr.get("Request", "")
+                req_ids = [r.strip() for r in req_field.split(",") if r.strip()]
+                user_blob = (blobs.get(f"{sha}:user.txt") or "").rstrip("\n")
+                for rid in sorted(req_ids, key=_req_num):
+                    n = _req_num(rid)
+                    if rid in seen or (n and n <= max_n):
+                        continue
+                    text = req_texts.get(rid) or (user_blob if len(req_ids) == 1 else "")
+                    if text:
+                        items.append({"type": "user", "n": n or None, "text": text})
+                        seen.add(rid)
+                        if n > max_n:
+                            max_n = n
+                rel_raw = tr.get("Relation", "")
+                rel_code = rel_raw.split()[0] if rel_raw else ""
+                rel = rel_code if rel_code in NAMES else ""
+                ans_text = (blobs.get(f"{sha}:answer.txt") or "").rstrip("\n")
+                items.append({
+                    "type": "answer",
+                    "kind": kind,
+                    "text": ans_text,
+                    "request": req_field,
+                    "relation": rel,
+                    "relation_name": NAMES.get(rel, ""),
+                    "source": tr.get("Source", ""),
+                    "commit": sha,
+                })
+            return items
 
     # --- steps --------------------------------------------------------------------
     def _route(self, text: str) -> Skill:
@@ -230,7 +286,8 @@ class Agent:
             return self._start(text, n, independent=True)[1]
         state = self.repo.read_state(target.branch)
         if rel == "k5":
-            return [self._say("interim", {"kind": "progress", **self._status_facts(target, state)}, target, req, rel, conf)]
+            return [self._say("interim", {"kind": "progress", **self._status_facts(target, state)}, target, req, rel,
+                              conf, user_text=text)]
         self.clock += 1
         state.put(Claim(req, REQUEST, text, req, label=_short(text), at=self.clock))
         trailers = {"Request": req, "Relation": relation, "Branch": target.branch,
@@ -334,14 +391,15 @@ class Agent:
                     "Does the later request change the intent of the earlier one?")
 
     def _say(self, kind: str, facts: Dict[str, Any], task: Task, req: str, rel: str, conf: float,
-             source_ref: str = "", sha: str = "") -> Answer:
+             source_ref: str = "", sha: str = "", user_text: str = "") -> Answer:
         ref = source_ref or task.branch
         sha = sha or self.repo.rev(ref) or ""
         facts = {**facts, "answer_type": kind}
         text = self.responder.write(facts)
         source = f"{ref}@{self.repo.short(sha)}"
         commit = self.repo.record_answer(kind, text, source, {
-            "Request": req, "Relation": f"{rel} {NAMES[rel]} ({conf:.2f})" if rel else ""})
+            "Request": req, "Relation": f"{rel} {NAMES[rel]} ({conf:.2f})" if rel else ""},
+            user_text=user_text)
         ans = Answer(kind, text, req, rel, source, commit)
         self.answers.append(ans)
         _log.info("answer %s from %s: %s", kind, source, text)

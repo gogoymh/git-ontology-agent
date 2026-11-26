@@ -45,6 +45,15 @@ export function App({boot, deps}: {boot: Boot; deps: Deps}) {
 				add({kind: 'header', ready: e, first: headers.current++ === 0});
 				setPhase('ready');
 				break;
+			case 'history':
+				if (headers.current <= 1 && e.items.length > 0) {
+					add(
+						...e.items.map<NewItem>(item =>
+							item.type === 'user' ? {kind: 'user', n: item.n, text: item.text} : {kind: 'answer', a: item},
+						),
+					);
+				}
+				break;
 			case 'user':
 				add({kind: 'user', n: e.n, text: e.text});
 				break;
