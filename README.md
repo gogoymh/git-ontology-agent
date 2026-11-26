@@ -18,7 +18,8 @@
   <a href="#examples">Examples</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#terminal-ui">Terminal UI</a> ·
-  <a href="#providers">Connect a model</a>
+  <a href="#providers">Connect a model</a> ·
+  <a href="docs/goa-intro-ko.pptx">소개 자료(한국어)</a>
 </p>
 
 </div>
@@ -401,6 +402,8 @@ A regression prints the metric, suspect modules and the exact command to reprodu
 The UI ships only permissively licensed packages (MIT, ISC); `node ui/scripts/license-check.mjs` fails the build otherwise.
 
 The banner is built by `scripts/make_banner.py` from Codex-generated art; candidates live in [`docs/assets/candidates`](docs/assets/candidates).
+
+The Korean intro deck ([`docs/goa-intro-ko.pptx`](docs/goa-intro-ko.pptx)) is rebuilt with `node scripts/make_deck_ko.js` (requires `pptxgenjs`).
 
 ## Out of scope (for now)
 
