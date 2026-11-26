@@ -110,8 +110,30 @@ class Repo:
             self.git("update-ref", "-d", f"refs/heads/{name}")
             _log.info("closed %s as %s", name, to)
 
+    def _ref(self, name: str) -> str:
+        return f"refs/heads/{name}" if self.rev(name) is not None else name
+
+    def is_ancestor(self, a: str, b: str) -> bool:
+        res = subprocess.run(
+            ["git", "-C", self.path, "merge-base", "--is-ancestor", self._ref(a), self._ref(b)],
+            capture_output=True, text=True, env={**os.environ, **_ENV},
+        )
+        if res.returncode in (0, 1):
+            return res.returncode == 0
+        raise RuntimeError(f"git merge-base --is-ancestor {a} {b} failed: {res.stderr.strip()}")
+
     def merge_base(self, a: str, b: str) -> str:
-        return self.git("merge-base", f"refs/heads/{a}", f"refs/heads/{b}")
+        return self.git("merge-base", self._ref(a), self._ref(b))
+
+    def merges(self, ref: str = "main", n: int = 200) -> List[Tuple[str, str, str]]:
+        """Recent two-parent merge commits on `ref` as (merge_sha, first_parent, second_parent)."""
+        out = self.git("rev-list", "--merges", "--parents", f"-n{n}", self._ref(ref))
+        rows: List[Tuple[str, str, str]] = []
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) >= 3:
+                rows.append((parts[0], parts[1], parts[2]))
+        return rows
 
     def merge_commit(self, branch: str, state: State, subject: str, trailers: Dict[str, str]) -> str:
         return self.commit_state("main", state, subject, trailers, extra_parent=self.rev(branch))

@@ -34,7 +34,7 @@ export type Command = {type: 'submit'; text: string} | {type: 'log'} | {type: 'q
 export interface Engine {
 	on(fn: (e: EngineEvent) => void): () => void;
 	send(cmd: Command): void;
-	stop(): void;
+	stop(): void | Promise<void>;
 }
 
 export type Connection = {id: string; kind: 'sign-in' | 'api-key' | 'offline'; label: string; ready: boolean; detail: string};
@@ -83,16 +83,29 @@ export function spawnEngine(args: string[], cwd = process.cwd()): Engine {
 		}
 	});
 	let exited = false;
+	let resolveDone!: () => void;
+	const done = new Promise<void>(r => {
+		resolveDone = r;
+	});
+	let killTimer: ReturnType<typeof setTimeout> | null = null;
+	const finish = () => {
+		if (killTimer) clearTimeout(killTimer);
+		killTimer = null;
+		resolveDone();
+	};
 	child.on('error', err => {
+		if (exited) return;
 		exited = true;
 		log(`engine failed to start: ${err.message}`);
 		emit({type: 'exit', code: null, stderr: `${py.cmd}: ${err.message}`});
+		finish();
 	});
 	child.on('exit', code => {
 		if (exited) return;
 		exited = true;
 		log(`engine exit ${code}`);
 		emit({type: 'exit', code, stderr});
+		finish();
 	});
 	return {
 		on(fn) {
@@ -105,12 +118,16 @@ export function spawnEngine(args: string[], cwd = process.cwd()): Engine {
 			child.stdin.write(JSON.stringify(cmd) + '\n');
 		},
 		stop() {
-			if (exited) return;
+			if (exited) return Promise.resolve();
 			this.send({type: 'quit'});
 			child.stdin.end();
-			setTimeout(() => {
-				if (!exited) child.kill('SIGTERM');
-			}, 1500).unref();
+			if (!killTimer) {
+				killTimer = setTimeout(() => {
+					if (!exited) child.kill('SIGTERM');
+				}, 1500);
+				killTimer.unref();
+			}
+			return done;
 		},
 	};
 }

@@ -92,14 +92,16 @@ class Server:
         self.stop = threading.Event()
         self.inbox = Inbox()
         self.last: List[Dict[str, Any]] = []
+        self.tasks_lock = threading.Lock()
         self.failed = False
         self.errors = 0   # consecutive failed ticks
 
     def tasks(self) -> None:
-        now = [{"n": t.n, "title": t.title, "branch": t.branch} for t in self.agent.open_tasks()]
-        if now != self.last:
-            self.last = now
-            self.ev.emit("tasks", open=now)
+        with self.tasks_lock:
+            now = [{"n": t.n, "title": t.title, "branch": t.branch} for t in self.agent.open_tasks()]
+            if now != self.last:
+                self.last = now
+                self.ev.emit("tasks", open=now)
 
     def work(self) -> None:
         while not self.stop.is_set():
@@ -152,6 +154,7 @@ class Server:
 
     def run(self) -> int:
         ready(self.ev, self.agent)
+        self.tasks()
         worker = threading.Thread(target=self.work, daemon=True)
         worker.start()
         quit_now = False

@@ -30,6 +30,7 @@ export function App({boot, deps}: {boot: Boot; deps: Deps}) {
 	const [steps, setSteps] = useState<Record<string, string>>({});
 	const [reading, setReading] = useState(0);
 	const engine = useRef<Engine | null>(null);
+	const connSeq = useRef(0);
 	const ids = useRef(0);
 	const headers = useRef(0);
 	const t = strings(ready?.lang ?? detectLang(boot.lang));
@@ -78,19 +79,28 @@ export function App({boot, deps}: {boot: Boot; deps: Deps}) {
 	};
 
 	const connect = (llm: string, decision: string) => {
+		const seq = ++connSeq.current;
 		const old = engine.current;
 		engine.current = null;
-		old?.stop();
+		const stopping = old?.stop();
 		log(`connect llm=${llm} decision=${decision}`);
 		setPhase('starting');
 		setTasks([]);
 		setSteps({});
 		setReading(0);
-		const e = deps.start(llm, decision);
-		engine.current = e;
-		e.on(ev => {
-			if (engine.current === e) handle(ev);
-		});
+		const launch = () => {
+			if (connSeq.current !== seq) return;
+			const e = deps.start(llm, decision);
+			engine.current = e;
+			e.on(ev => {
+				if (engine.current === e) handle(ev);
+			});
+		};
+		if (stopping && typeof stopping.then === 'function') {
+			void stopping.then(launch);
+		} else {
+			launch();
+		}
 	};
 
 	const choose = async (always: boolean) => {
@@ -117,7 +127,10 @@ export function App({boot, deps}: {boot: Boot; deps: Deps}) {
 	useEffect(() => {
 		if (boot.llm) connect(boot.llm, boot.decision ?? 'auto');
 		else void choose(false);
-		return () => engine.current?.stop();
+		return () => {
+			++connSeq.current;
+			void engine.current?.stop();
+		};
 	}, []);
 
 	const pick = (c: Connection) => {

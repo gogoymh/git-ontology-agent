@@ -1,13 +1,16 @@
 // The UI driving the real Python engine (`python -m goa serve`, offline): type, watch it merge, read the log.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {execFileSync, spawn} from 'node:child_process';
 import {mkdtempSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {createInterface} from 'node:readline';
 import {render} from 'ink-testing-library';
 import {App} from '../app.js';
-import {listConnections, saveDefault, spawnEngine} from '../engine.js';
-import {KEY, frameWith, type} from './helpers.js';
+import type {Engine, EngineEvent} from '../engine.js';
+import {listConnections, python, saveDefault, spawnEngine} from '../engine.js';
+import {KEY, auth, frameWith, type} from './helpers.js';
 
 process.env['GOA_UI_LOG'] = '/dev/null';
 for (const k of Object.keys(process.env)) if (k.startsWith('GOA_') && k !== 'GOA_UI_LOG' && k !== 'GOA_PYTHON') delete process.env[k];
@@ -57,6 +60,138 @@ test('the real `goa auth --json` lists sign-ins, API keys and offline without se
 		const again = await listConnections();
 		assert.deepEqual([again.default.llm, again.default.source], ['offline', 'saved']);
 	} finally {
+		rmSync(dir, {recursive: true, force: true});
+	}
+});
+
+/** Spawn a real `goa.serve.Server` whose TripSkill pauses briefly per tick so /connect can fire mid-work. */
+function spawnSlowEngine(repo: string, cwd: string): Engine {
+	const py = python();
+	const code = `
+import sys, time
+from goa.agent import Agent
+from goa.serve import serve
+from goa.skills import CalendarSkill, TripSkill
+
+class SlowTrip(TripSkill):
+    def next_step(self, state, req, at):
+        time.sleep(0.4)
+        return super().next_step(state, req, at)
+
+raise SystemExit(serve(lambda on_answer, on_step: Agent(
+    sys.argv[1], llm="offline", decision="local", lang="en",
+    skills=[SlowTrip("en"), CalendarSkill("en")],
+    on_answer=on_answer, on_step=on_step,
+)))
+`;
+	const child = spawn(py.cmd, ['-c', code, repo], {cwd, env: py.env, stdio: ['pipe', 'pipe', 'pipe']});
+	const listeners = new Set<(e: EngineEvent) => void>();
+	const emit = (e: EngineEvent) => {
+		for (const fn of listeners) fn(e);
+	};
+	let exited = false;
+	let resolveDone!: () => void;
+	const done = new Promise<void>(r => {
+		resolveDone = r;
+	});
+	createInterface({input: child.stdout}).on('line', line => {
+		if (!line.trim()) return;
+		try {
+			emit(JSON.parse(line) as EngineEvent);
+		} catch {}
+	});
+	child.on('exit', code => {
+		if (exited) return;
+		exited = true;
+		emit({type: 'exit', code, stderr: ''});
+		resolveDone();
+	});
+	return {
+		on(fn) {
+			listeners.add(fn);
+			return () => listeners.delete(fn);
+		},
+		send(cmd) {
+			if (!exited && child.stdin.writable) child.stdin.write(JSON.stringify(cmd) + '\n');
+		},
+		stop() {
+			if (exited) return Promise.resolve();
+			this.send({type: 'quit'});
+			child.stdin.end();
+			return done;
+		},
+	};
+}
+
+test('resumes an open req branch after UI restart and shows the final answer', {timeout: 60_000}, async () => {
+	const dir = mkdtempSync(join(tmpdir(), 'goa-ui-resume-'));
+	const repo = join(dir, 'conv');
+	process.env['GOA_CONFIG'] = join(dir, 'config');
+	const py = python();
+	execFileSync(
+		py.cmd,
+		[
+			'-c',
+			'import sys; from goa import Agent; a = Agent(sys.argv[1], lang="en"); a.submit("Plan my Busan business trip next week"); a.tick(); a.tick()',
+			repo,
+		],
+		{cwd: dir, env: py.env},
+	);
+	const ui = render(
+		<App
+			boot={{llm: 'offline', decision: 'local', lang: 'en'}}
+			deps={{listConnections, saveDefault, start: (l, d) => spawnEngine(['--llm', l, '--decision', d, '--lang', 'en', '--repo', repo], dir)}}
+		/>,
+	);
+	try {
+		const f = await frameWith(ui.lastFrame, 'Here is your plan', 20_000);
+		assert.match(f, /● Here is your plan: Tue 08:00 KTX \(Seoul→Busan\)/);
+		assert.match(f, /final · main@[0-9a-f]{7}/);
+		await type(ui.stdin, '/log', KEY.enter);
+		const logged = await frameWith(ui.lastFrame, /Merge req\/1: Busan trip plan/, 20_000);
+		assert.match(logged, /Merge req\/1: Busan trip plan/);
+	} finally {
+		ui.unmount();
+		await new Promise(r => setTimeout(r, 300));
+		rmSync(dir, {recursive: true, force: true});
+	}
+});
+
+test('resumes an open req branch across /connect model switch without racing', {timeout: 60_000}, async () => {
+	const dir = mkdtempSync(join(tmpdir(), 'goa-ui-switch-'));
+	const repo = join(dir, 'conv');
+	process.env['GOA_CONFIG'] = join(dir, 'config');
+	let starts = 0;
+	const ui = render(
+		<App
+			boot={{llm: 'offline', decision: 'local', lang: 'en'}}
+			deps={{
+				listConnections: async () => auth('saved'),
+				saveDefault: async () => {},
+				start: l => {
+					starts += 1;
+					if (starts === 1) return spawnSlowEngine(repo, dir);
+					return spawnEngine(['--mock', '--llm', l, '--decision', `llm:${l}`, '--lang', 'en', '--repo', repo], dir);
+				},
+			}}
+		/>,
+	);
+	try {
+		await frameWith(ui.lastFrame, 'Git Ontology Agent', 20_000);
+		await type(ui.stdin, 'Plan my Busan business trip next week', KEY.enter);
+		await frameWith(ui.lastFrame, 'req/1 Busan trip plan', 20_000);
+		await type(ui.stdin, '/connect', KEY.enter);
+		await frameWith(ui.lastFrame, 'Connect a model', 10_000);
+		await type(ui.stdin, KEY.enter); // switch from offline to claude-code (first ready option)
+		const f = await frameWith(ui.lastFrame, 'Here is your plan', 20_000);
+		assert.equal(starts, 2);
+		assert.match(f, /Connected\s+claude-code/);
+		assert.match(f, /● Here is your plan: Tue 08:00 KTX \(Seoul→Busan\)/);
+		assert.match(f, /final · main@[0-9a-f]{7}/);
+		assert.doesNotMatch(f, /✕/);
+	} finally {
+		ui.unmount();
+		await new Promise(r => setTimeout(r, 300));
 		rmSync(dir, {recursive: true, force: true});
 	}
 });
