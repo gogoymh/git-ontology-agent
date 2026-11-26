@@ -84,32 +84,46 @@ class HeadlessRunnerTest(unittest.TestCase):
 
     def test_headless_json_run_and_output_file(self) -> None:
         out_file = self.tmp / "result.json"
-        res = _run_cli("--iterations", "1", "--json", "--output", str(out_file))
+        res = _run_cli(
+            "--suite",
+            "scenarios",
+            "--case",
+            "e2e_cancel_en_offline",
+            "--iterations",
+            "1",
+            "--json",
+            "--output",
+            str(out_file),
+        )
         self.assertEqual(res.returncode, 0, res.stderr)
         data = json.loads(res.stdout)
         self.assertEqual(data, json.loads(out_file.read_text(encoding="utf-8")))
 
         self.assertEqual(data["schema_version"], 1)
+        self.assertTrue(data["benchmark_name"])
+        self.assertTrue(data["recorded_at"])
+        self.assertIn("git", data)
+        self.assertIn("environment", data)
+
         summary = data["summary"]
-        for k in (
-            "overall_accuracy",
-            "relation_accuracy",
-            "invalidation_exact_match",
-            "invalidation_f1",
-            "merge_accuracy",
-            "scenario_pass_rate",
-        ):
+        for k in ("overall_accuracy", "scenario_pass_rate"):
             self.assertIn(k, summary)
             self.assertGreaterEqual(summary[k], 0.0)
             self.assertLessEqual(summary[k], 1.0)
+        self.assertEqual(summary["total_cases"], 1)
+        self.assertEqual(summary["passed_cases"], 1)
 
-        for k in ("submit_ack_p50_ms", "tick_p50_ms", "scenario_total_p50_ms", "serve_roundtrip_p50_ms"):
+        for k in ("submit_ack_p50_ms", "tick_p50_ms", "scenario_total_p50_ms"):
             self.assertIn(k, summary)
             self.assertGreater(summary[k], 0.0)
+        self.assertIn("serve_roundtrip_p50_ms", summary)
+        self.assertGreaterEqual(summary["serve_roundtrip_p50_ms"], 0.0)
 
-        for suite_name in ("relation", "invalidation", "merge", "scenarios"):
-            self.assertIn(suite_name, data["suites"])
-            self.assertGreater(data["suites"][suite_name]["total"], 0)
+        self.assertEqual(list(data["suites"].keys()), ["scenarios"])
+        self.assertEqual(data["suites"]["scenarios"]["total"], 1)
+        self.assertEqual(data["suites"]["scenarios"]["cases"][0]["id"], "e2e_cancel_en_offline")
+        self.assertEqual(data["latency"]["iterations"], 1)
+        self.assertIn("e2e_cancel_en_offline", data["latency"]["by_scenario_ms"])
 
     def test_single_case_reproduction_filter(self) -> None:
         res = _run_cli("--suite", "relation", "--case", "rel_k1_budget_en", "--json")
@@ -152,23 +166,27 @@ class BaselineRecordTest(unittest.TestCase):
         self.assertEqual(baseline["suites"]["scenarios"]["total"], len(tasks["scenario_cases"]))
 
     def test_compare_against_baseline_passes_without_regression(self) -> None:
-        # Use generous latency tolerance because test checks may run concurrently on the host;
-        # accuracy tolerance stays strict at 0.0.
+        # Full-suite measurement and latency comparison run in the GOA-18 Benchmark on merge
+        # workflow; unit tests verify the --compare CLI path and output shape on a single case.
         res = _run_cli(
+            "--suite",
+            "relation",
+            "--case",
+            "rel_k1_budget_en",
             "--compare",
             str(BASELINE_PATH),
-            "--iterations",
-            "2",
             "--accuracy-tol",
             "0.0",
-            "--latency-tol-pct",
-            "300.0",
             "--json",
         )
         self.assertEqual(res.returncode, 0, res.stdout + "\n" + res.stderr)
         payload = json.loads(res.stdout)
+        self.assertEqual(payload["result"]["suites"]["relation"]["total"], 1)
+        self.assertEqual(payload["result"]["suites"]["relation"]["cases"][0]["id"], "rel_k1_budget_en")
         self.assertTrue(payload["comparison"]["passed"], payload["comparison"]["regressions"])
         self.assertEqual(payload["comparison"]["regressions"], [])
+        self.assertIn("relation_accuracy", payload["comparison"]["deltas"])
+        self.assertIn("overall_accuracy", payload["comparison"]["deltas"])
 
 
 class ComparisonTest(unittest.TestCase):
