@@ -61,7 +61,40 @@ export function python(): {cmd: string; env: NodeJS.ProcessEnv} {
 	return {cmd, env};
 }
 
-export function spawnEngine(args: string[], cwd = process.cwd()): Engine {
+/** stop() timeline: quit, then SIGTERM after `term`, SIGKILL `kill` later, and give up `giveUp` after SIGTERM. */
+export const STOP_MS = {term: 1500, kill: 1500, giveUp: 3000};
+
+/**
+ * Escalates until the engine is gone, so a stuck engine can never hold /connect in 'starting'.
+ * `release` resolves stop()'s promise even if the process ignores every signal. Returns a cancel.
+ */
+export function escalateStop(kill: (sig: NodeJS.Signals) => void, exited: () => boolean, release: () => void, ms = STOP_MS): () => void {
+	const timers: ReturnType<typeof setTimeout>[] = [];
+	const at = (delay: number, fn: () => void) => {
+		const t = setTimeout(() => {
+			if (!exited()) fn();
+		}, delay);
+		t.unref();
+		timers.push(t);
+	};
+	at(ms.term, () => {
+		log(`engine still running ${ms.term}ms after quit; sending SIGTERM`);
+		kill('SIGTERM');
+		at(ms.kill, () => {
+			log(`engine ignored SIGTERM for ${ms.kill}ms; sending SIGKILL`);
+			kill('SIGKILL');
+		});
+		at(ms.giveUp, () => {
+			log(`engine did not exit ${ms.giveUp}ms after SIGTERM; releasing stop() anyway`);
+			release();
+		});
+	});
+	return () => {
+		for (const t of timers) clearTimeout(t);
+	};
+}
+
+export function spawnEngine(args: string[], cwd = process.cwd(), stopMs = STOP_MS): Engine {
 	const py = python();
 	const argv = ['-m', 'goa', 'serve', ...args];
 	log(`engine start: ${py.cmd} ${argv.join(' ')}`);
@@ -91,10 +124,10 @@ export function spawnEngine(args: string[], cwd = process.cwd()): Engine {
 	const done = new Promise<void>(r => {
 		resolveDone = r;
 	});
-	let killTimer: ReturnType<typeof setTimeout> | null = null;
+	let cancelStop: (() => void) | null = null;
 	const finish = () => {
-		if (killTimer) clearTimeout(killTimer);
-		killTimer = null;
+		cancelStop?.();
+		cancelStop = null;
 		resolveDone();
 	};
 	child.on('error', err => {
@@ -125,12 +158,7 @@ export function spawnEngine(args: string[], cwd = process.cwd()): Engine {
 			if (exited) return Promise.resolve();
 			this.send({type: 'quit'});
 			child.stdin.end();
-			if (!killTimer) {
-				killTimer = setTimeout(() => {
-					if (!exited) child.kill('SIGTERM');
-				}, 1500);
-				killTimer.unref();
-			}
+			cancelStop ??= escalateStop(sig => child.kill(sig), () => exited, resolveDone, stopMs);
 			return done;
 		},
 	};
