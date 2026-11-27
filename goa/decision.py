@@ -20,7 +20,7 @@ import re
 from typing import Any, Dict, Optional
 
 from . import http, log
-from .llm import LLM, gemini_schema, make_llm, parse_json
+from .llm import LLM, _is_local_url, gemini_schema, make_llm, parse_json
 
 _log = log.get("decision")
 
@@ -68,9 +68,13 @@ class JevAPI(DecisionModel):
     def request(self, state: Any, questions: Questions):
         key = os.environ.get(self.key_env, "")
         if not key:
-            raise RuntimeError(f"set {self.key_env} to use {self.name}")
-        return self.url, {"Authorization": f"Bearer {key}"}, {"model": self.model, "state": state,
-                                                              "questions": questions}
+            if _is_local_url(self.url):
+                _log.info("keyless loopback request to %s (%s)", self.url, self.name)
+            else:
+                raise RuntimeError(f"set {self.key_env} to use {self.name}")
+        headers = {"Authorization": f"Bearer {key}"} if key else {}
+        return self.url, headers, {"model": self.model, "state": state,
+                                    "questions": questions}
 
     def _decide(self, state, questions):
         url, headers, body = self.request(state, questions)
@@ -96,10 +100,14 @@ class OpenAIDecisions(DecisionModel):
                 qs.append({"name": name, "type": "predicate", "instructions": q["instructions"]})
         key = os.environ.get("OPENAI_API_KEY", "")
         if not key:
-            raise RuntimeError("set OPENAI_API_KEY to use openai decisions")
+            if _is_local_url(self.url):
+                _log.info("keyless loopback request to %s (%s)", self.url, self.name)
+            else:
+                raise RuntimeError("set OPENAI_API_KEY to use openai decisions")
+        headers = {"Authorization": f"Bearer {key}"} if key else {}
         body = {"model": self.model, "input": state if isinstance(state, str) else json.dumps(state, ensure_ascii=False),
                 "questions": qs}
-        return self.url, {"Authorization": f"Bearer {key}"}, body
+        return self.url, headers, body
 
     def _decide(self, state, questions):
         url, headers, body = self.request(state, questions)
