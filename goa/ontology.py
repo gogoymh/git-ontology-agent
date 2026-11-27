@@ -101,11 +101,12 @@ class State:
     # --- dependency graph -------------------------------------------------
     def dependents(self, changed: Iterable[str]) -> List[str]:
         """Every claim that transitively depends on any changed id, in state order."""
-        frontier, hit = list(changed), set()
+        origins = set(changed)
+        frontier, hit = list(origins), set()
         while frontier:
             cur = frontier.pop()
             for c in self:
-                if c.id in hit or c.id == cur:
+                if c.id in hit or c.id in origins or c.id == cur:
                     continue
                 if any(_matches(p, cur) for p in c.depends_on):
                     hit.add(c.id)
