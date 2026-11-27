@@ -1,0 +1,570 @@
+<!doctype html><html lang="en"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Git Ontology Agent</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: 기획서. 왼쪽 고정 목차 + 본문 한 단(약 70ch). 휴대폰에서는 목차가 위로 올라감. 네 가지 기술은 각자 색 하나로 구분 */
+:root {
+  --bg: #f5f6f4;
+  --surface: #ffffff;
+  --fg: #17201c;
+  --muted: #5b665f;
+  --line: #d9ded9;
+  --accent: #1f6f5c;       /* 본문 강조 */
+  --git: #c2512a;          /* Git */
+  --onto: #2f5fa8;         /* Ontology */
+  --dec: #9a6a00;          /* Decision Model */
+  --llm: #7a3f8f;          /* LLM */
+  --code-bg: #eef1ee;
+  --tint: rgba(31,111,92,.08);
+  --font-display: "Space Grotesk", "IBM Plex Sans KR", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111613; --surface: #18201c; --fg: #e4ebe6; --muted: #9aa8a0; --line: #2b3530;
+    --accent: #5cc2a6; --git: #ef8a62; --onto: #7fa8ea; --dec: #e0b44a; --llm: #c792dc;
+    --code-bg: #1d2622; --tint: rgba(92,194,166,.10); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111613; --surface: #18201c; --fg: #e4ebe6; --muted: #9aa8a0; --line: #2b3530;
+  --accent: #5cc2a6; --git: #ef8a62; --onto: #7fa8ea; --dec: #e0b44a; --llm: #c792dc;
+  --code-bg: #1d2622; --tint: rgba(92,194,166,.10); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.75;
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+.wrap {
+  max-width: 1120px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 48px 96px;
+  display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 56px;
+}
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0,1fr); gap: 24px; padding-block: 28px 64px; } }
+
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 32px); align-self: start; font-size: 13.5px; }
+nav.toc .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; counter-reset: t; }
+nav.toc li { counter-increment: t; }
+nav.toc a { color: var(--muted); text-decoration: none; display: flex; gap: 8px; padding: 2px 0; }
+nav.toc a::before { content: counter(t, decimal-leading-zero); font-family: var(--font-mono); font-size: 11px; padding-top: 3px; color: var(--line); }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); }
+nav.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 860px) {
+  nav.toc { position: static; border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; background: var(--surface); }
+  nav.toc ol { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+main { min-width: 0; max-width: 760px; }
+header.hero { padding-bottom: 32px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(36px, 6vw, 56px); line-height: 1.05; letter-spacing: -.02em; margin: 12px 0 18px; text-wrap: balance; }
+.lede { font-size: 18px; color: var(--fg); max-width: 62ch; margin: 0; }
+.meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid currentColor; line-height: 1.6; white-space: nowrap; }
+.chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.c-git { color: var(--git); } .c-onto { color: var(--onto); } .c-dec { color: var(--dec); } .c-llm { color: var(--llm); }
+.chip.no { color: var(--muted); text-decoration: line-through; }
+.chip.no::before { display: none; }
+
+section { padding-top: 56px; scroll-margin-top: 24px; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 28px; line-height: 1.2; letter-spacing: -.01em; margin: 0 0 6px; text-wrap: balance; }
+h2 .num { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--muted); display: block; margin-bottom: 6px; letter-spacing: .04em; }
+h3 { font-size: 17px; font-weight: 700; margin: 32px 0 8px; }
+p { margin: 0 0 14px; max-width: 68ch; }
+.sub { color: var(--muted); margin-bottom: 22px; }
+strong { font-weight: 700; }
+ul.plain { margin: 0 0 14px; padding-left: 20px; }
+ul.plain li { margin-bottom: 6px; }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+
+/* 4 기술 */
+.pillars { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; margin-top: 8px; }
+@media (max-width: 560px) { .pillars { grid-template-columns: minmax(0,1fr); } }
+.pillar { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid currentColor; border-radius: 6px; padding: 18px 18px 16px; min-width: 0; }
+.pillar h4 { margin: 0 0 2px; font-family: var(--font-display); font-size: 19px; font-weight: 700; }
+.pillar .role { font-family: var(--font-mono); font-size: 12px; margin-bottom: 10px; }
+.pillar p, .pillar ul { color: var(--fg); font-size: 14.5px; line-height: 1.65; margin: 0; }
+.pillar ul { padding-left: 18px; margin-top: 6px; }
+
+.callout { border-left: 3px solid var(--accent); background: var(--tint); padding: 14px 18px; border-radius: 0 6px 6px 0; margin: 18px 0; max-width: 68ch; }
+.callout p:last-child { margin-bottom: 0; }
+
+/* 파이프라인 */
+.flow { display: grid; gap: 0; margin-top: 12px; }
+.stage { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 14px; align-items: start; }
+.stage .rail { display: flex; flex-direction: column; align-items: center; height: 100%; }
+.stage .dot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid currentColor; display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; font-weight: 500; background: var(--surface); flex: none; }
+.stage .stem { width: 2px; flex: 1; background: var(--line); min-height: 18px; }
+.stage:last-child .stem { display: none; }
+.stage .body { padding-bottom: 22px; min-width: 0; }
+.stage .body h5 { margin: 4px 0 2px; font-size: 16px; font-weight: 700; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.stage .body p { font-size: 14.5px; color: var(--muted); margin: 0; }
+.stage .body .chip { font-size: 11px; padding: 1px 8px; }
+
+/* 코드 / 표 */
+pre { font-family: var(--font-mono); font-size: 13px; line-height: 1.6; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; overflow-x: auto; margin: 10px 0 18px; word-break: normal; overflow-wrap: normal; }
+pre .k { color: var(--onto); } pre .c { color: var(--muted); } pre .t { color: var(--git); } pre .v { color: var(--accent); }
+.table-scroll { overflow-x: auto; margin: 10px 0 18px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.55; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+td code { white-space: nowrap; }
+.out { font-family: var(--font-mono); font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 4px; white-space: nowrap; display: inline-block; }
+.out.ok { background: rgba(31,111,92,.14); color: var(--accent); }
+.out.ask { background: rgba(154,106,0,.15); color: var(--dec); }
+.out.hold { background: rgba(47,95,168,.14); color: var(--onto); }
+.out.no { background: rgba(194,81,42,.14); color: var(--git); }
+
+/* 시나리오 */
+.scenario { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px; margin: 16px 0; }
+.scenario .q { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+.scenario .q::before { content: "Request"; font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--muted); margin-right: 10px; letter-spacing: .06em; }
+.scenario ol { margin: 0; padding-left: 20px; font-size: 14.5px; line-height: 1.7; }
+.scenario ol li { margin-bottom: 6px; }
+.scenario .a { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); font-size: 14.5px; }
+.scenario .a::before { content: "Reply"; font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-right: 10px; letter-spacing: .06em; }
+
+/* 로드맵 */
+.phases { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+@media (max-width: 680px) { .phases { grid-template-columns: minmax(0,1fr); } }
+.phase { border: 1px solid var(--line); border-radius: 6px; padding: 16px; background: var(--surface); min-width: 0; }
+.phase .tag { font-family: var(--font-mono); font-size: 11.5px; color: var(--accent); letter-spacing: .05em; }
+.phase h4 { margin: 4px 0 8px; font-size: 16px; }
+.phase ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.65; }
+
+.two { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+@media (max-width: 560px) { .two { grid-template-columns: minmax(0,1fr); } }
+.box { border: 1px solid var(--line); border-radius: 6px; padding: 16px; background: var(--surface); min-width: 0; }
+.box h4 { margin: 0 0 8px; font-size: 15px; }
+.box ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.65; }
+
+footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+/* 도식과 ReAct 트레이스 */
+.diagram { overflow-x: auto; margin: 10px 0 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.diagram .nd { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.diagram .nd.llm { stroke: var(--llm); }
+.diagram .nd.dec { stroke: var(--dec); fill: var(--tint); }
+.diagram .nd.git { stroke: var(--git); }
+.diagram .t1 { fill: var(--fg); font-family: var(--font-display); font-weight: 700; font-size: 15px; text-anchor: middle; }
+.diagram .t1.sm { font-size: 13px; }
+.diagram .t2 { fill: var(--muted); font-family: var(--font-body); font-size: 12px; text-anchor: middle; }
+.diagram .lb { fill: var(--muted); font-family: var(--font-mono); font-size: 11.5px; text-anchor: middle; }
+.diagram .ln { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.diagram .ln.dash { stroke-dasharray: 5 4; }
+.diagram .mk { fill: var(--muted); }
+.diagram .br { fill: none; stroke-width: 3; }
+.diagram .br.main { stroke: var(--fg); }
+.diagram .br.a { stroke: var(--onto); }
+.diagram .br.b { stroke: var(--llm); }
+.diagram .cm { fill: var(--surface); stroke: var(--fg); stroke-width: 2.5; }
+.diagram .cm.a { stroke: var(--onto); }
+.diagram .cm.b { stroke: var(--llm); }
+.trace { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 16px 18px; margin: 14px 0; font-size: 14.5px; display: grid; gap: 8px; }
+.trace .tq { font-weight: 600; }
+.trace .tl { display: grid; grid-template-columns: 104px minmax(0,1fr); gap: 10px; align-items: baseline; }
+.trace .tk { font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; letter-spacing: .03em; }
+.trace .tk.th { color: var(--llm); } .trace .tk.ac { color: var(--accent); } .trace .tk.ob { color: var(--onto); } .trace .tk.dc { color: var(--dec); }
+.trace .ta { border-top: 1px dashed var(--line); padding-top: 10px; margin-top: 4px; }
+@media (max-width: 480px) { .trace .tl { grid-template-columns: minmax(0,1fr); gap: 2px; } }
+
+.diagram .cm.dc { stroke: var(--dec); }
+.diagram .pl { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.diagram .pl.ans { stroke: var(--llm); }
+.diagram .pl.fin { stroke: var(--accent); fill: var(--tint); }
+.diagram .pt { fill: var(--fg); font-family: var(--font-body); font-size: 12px; font-weight: 600; text-anchor: middle; }
+
+.thesis { font-family: var(--font-display); font-size: clamp(20px, 3.2vw, 27px); line-height: 1.45; font-weight: 500; margin: 4px 0 22px; padding: 18px 20px; border-left: 4px solid var(--accent); background: var(--tint); border-radius: 0 8px 8px 0; text-wrap: balance; max-width: 40ch; }
+.thesis strong { color: var(--accent); font-weight: 700; }
+.diagram .nd.chg { stroke: var(--dec); stroke-width: 2.5; fill: var(--tint); }
+.diagram .nd.inv { stroke: var(--git); stroke-dasharray: 5 3; stroke-width: 2; }
+.diagram .nid { fill: var(--fg); font-family: var(--font-mono); font-size: 9.5px; font-weight: 500; text-anchor: middle; }
+.diagram .nty { fill: var(--muted); font-family: var(--font-body); font-size: 9.5px; text-anchor: middle; }
+.diagram .ptl { fill: var(--fg); font-family: var(--font-display); font-size: 13.5px; font-weight: 700; }
+</style>
+
+<div class="wrap">
+  <nav class="toc" aria-label="Contents">
+    <div class="label">Contents</div>
+    <ol>
+      <li><a href="#what">What it does</a></li>
+      <li><a href="#timeline">Timeline</a></li>
+      <li><a href="#ontology">What the ontology tracks</a></li>
+      <li><a href="#flow">How it works</a></li>
+      <li><a href="#relation">Classifying follow-ups</a></li>
+      <li><a href="#answers">Interim and final answers</a></li>
+      <li><a href="#merge">Merging claims</a></li>
+      <li><a href="#commit">Commit records</a></li>
+      <li><a href="#examples">More examples</a></li>
+      <li><a href="#later">Scope</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="eyebrow">Design notes · v2.1 · 2026-11-21</div>
+      <h1>Git Ontology Agent</h1>
+      <p class="thesis">Git records <strong>who changed what and when</strong>.<br>The ontology tracks <strong>what depends on those changes and how to merge them</strong>.</p>
+      <p class="lede">You can change a request while Git Ontology Agent is working on it. Add a budget, correct a detail, or ask a separate question. The agent replies from the state it has committed so far, then writes the final answer from the merged result.</p>
+      <div class="meta-row">
+        <span class="chip c-git">Git · Branches and merges</span>
+        <span class="chip c-onto">Ontology · Work state</span>
+        <span class="chip c-dec">Decision model · Routing and conflicts</span>
+        <span class="chip c-llm">LLM · Work and replies</span>
+      </div>
+    </header>
+
+    <section id="what">
+      <h2><span class="num">01</span>What it does</h2>
+      <p>Git Ontology Agent (GOA) opens a branch for a new task. A follow-up that changes the task updates that branch. A separate question gets its own branch and can finish while the first task is still running.</p>
+      <h3>A trip plan, a budget, and a separate question</h3>
+      <div class="trace">
+        <div class="tq">R1 · “Can you plan my business trip to Busan next week?”</div>
+        <div class="tl"><span class="tk ac">req/1</span>Pick a KTX train and commit three hotel options.</div>
+        <div class="tq">R2 · “One more thing: keep it within ₩500,000.”</div>
+        <div class="tl"><span class="tk dc">Choice</span>Add <code>constraint.budget</code> to <code>req/1</code>. Recheck the hotel options and total. Keep the train.</div>
+        <div class="ta"><strong>Interim 1</strong> “I’ve settled on the Tuesday morning KTX. I’m checking hotels again to stay within ₩500,000.”</div>
+        <div class="tq">R3 · “What time is tomorrow’s meeting again?”</div>
+        <div class="tl"><span class="tk dc">Choice</span>Open <code>req/3</code> from <code>main</code> and merge it once the meeting question is answered.</div>
+        <div class="ta"><strong>Interim 2</strong> “Tomorrow’s meeting is at 2 p.m. I’m still working on the trip.”</div>
+        <div class="tl"><span class="tk ac">req/1</span>Pick a hotel, confirm the total, and merge the itinerary into <code>main</code>.</div>
+        <div class="ta"><strong>Final</strong> “Take the 8 a.m. KTX on Tuesday and stay two nights at Hotel A for ₩180,000. The trip comes to ₩460,000, within the budget you added.”</div>
+      </div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><code>main</code></td><td>The merged conversation state.</td></tr>
+          <tr><td>Request branch</td><td>A task in progress, named <code>req/&lt;number&gt;</code>.</td></tr>
+          <tr><td>Base commit</td><td>The commit on <code>main</code> the branch started from.</td></tr>
+          <tr><td>Claim</td><td>One typed piece of work state, such as <code>trip.city</code> or <code>constraint.budget</code>.</td></tr>
+          <tr><td>Relation</td><td>How the latest message affects a task in progress.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="timeline">
+      <h2><span class="num">02</span>Timeline</h2>
+      <p class="sub">R2 changes the trip branch. R3 runs on a separate branch and merges first.</p>
+      <div class="diagram">
+        <svg viewBox="0 0 720 310" role="img" aria-label="Request 1 opens the Busan trip branch at C0. Request 2 adds a budget to that branch and gets an interim reply. Request 3 asks about a meeting and gets its own branch and reply. The trip branch merges at M and the agent sends the final itinerary.">
+          <defs>
+            <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk"/></marker>
+          </defs>
+          <!-- lanes -->
+          <text x="24" y="54" class="lb" text-anchor="start">main</text>
+          <path d="M70,60 L700,60" class="br main"/>
+          <!-- req/1 -->
+          <path d="M80,60 C100,60 100,150 120,150 L580,150 C610,150 610,60 640,60" class="br a"/>
+          <text x="124" y="138" class="lb" text-anchor="start">req/1 Busan trip</text>
+          <!-- req/3 -->
+          <path d="M470,60 C485,60 485,105 500,105 L520,105 C535,105 535,60 550,60" class="br b"/>
+          <text x="500" y="94" class="lb">req/3</text>
+          <!-- main commits -->
+          <circle cx="80" cy="60" r="7" class="cm"/>
+          <text x="80" y="40" class="lb">C0</text>
+          <circle cx="550" cy="60" r="7" class="cm b"/>
+          <circle cx="640" cy="60" r="9" class="cm a"/>
+          <text x="640" y="38" class="lb">M</text>
+          <!-- req/1 commits -->
+          <circle cx="160" cy="150" r="6" class="cm a"/>
+          <text x="160" y="174" class="lb">KTX schedule</text>
+          <circle cx="240" cy="150" r="6" class="cm a"/>
+          <text x="240" y="174" class="lb">3 hotel options</text>
+          <circle cx="330" cy="150" r="7" class="cm dc"/>
+          <text x="330" y="174" class="lb">+₩500k budget</text>
+          <text x="330" y="190" class="lb">Budget added</text>
+          <circle cx="420" cy="150" r="6" class="cm a"/>
+          <text x="420" y="174" class="lb">Hotel reselected</text>
+          <circle cx="540" cy="150" r="6" class="cm a"/>
+          <text x="540" y="174" class="lb">Plan set</text>
+          <circle cx="510" cy="105" r="6" class="cm b"/>
+          <!-- guides -->
+          <path d="M80,228 L80,70" class="ln dash"/>
+          <path d="M320,228 L320,160" class="ln dash"/>
+          <path d="M470,228 L470,70" class="ln dash"/>
+          <path d="M560,252 L552,70" class="ln dash"/>
+          <path d="M640,252 L640,72" class="ln dash"/>
+          <!-- lanes labels -->
+          <text x="24" y="244" class="lb" text-anchor="start">Request</text>
+          <text x="24" y="288" class="lb" text-anchor="start">Reply</text>
+          <!-- request pills -->
+          <rect x="56" y="228" width="80" height="24" rx="12" class="pl"/>
+          <text x="96" y="244" class="pt">R1 · Trip</text>
+          <rect x="255" y="228" width="130" height="24" rx="12" class="pl"/>
+          <text x="320" y="244" class="pt">R2 · ₩500k budget</text>
+          <rect x="400" y="228" width="140" height="24" rx="12" class="pl"/>
+          <text x="470" y="244" class="pt">R3 · Meeting time</text>
+          <!-- answer pills -->
+          <rect x="280" y="272" width="90" height="24" rx="12" class="pl ans"/>
+          <text x="325" y="288" class="pt">Interim 1</text>
+          <rect x="525" y="272" width="70" height="24" rx="12" class="pl ans"/>
+          <text x="560" y="288" class="pt">Interim 2</text>
+          <rect x="605" y="272" width="80" height="24" rx="12" class="pl fin"/>
+          <text x="645" y="288" class="pt">Final</text>
+        </svg>
+      </div>
+      <p>The first interim reply uses the latest commit on <code>req/1</code>, which has the new budget and the confirmed train. The second comes from the merged meeting result. Once the trip branch merges at M, the final reply uses that merged state to report the itinerary and identify what changed after C0.</p>
+    </section>
+
+    <section id="ontology">
+      <h2><span class="num">03</span>What the ontology tracks</h2>
+      <p>GOA stores work as typed claims in <code>state.yaml</code>. A claim records which request it came from (<code>from</code>), what it depends on (<code>depends_on</code>), and where it stands (<code>status</code>).</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Claim type</th><th>What it holds</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><code>Request</code></td><td>A user message and its request ID</td><td><code>req.2</code> “Keep it within ₩500,000.”</td></tr>
+          <tr><td><code>Constraint</code></td><td>A condition the result must meet</td><td><code>constraint.budget</code> = ₩500,000</td></tr>
+          <tr><td><code>Assumption</code></td><td>A premise the work relies on</td><td><code>trip.city</code> = Busan</td></tr>
+          <tr><td><code>Finding</code></td><td>Something the agent has checked</td><td><code>hotel.candidates</code> = three hotels</td></tr>
+          <tr><td><code>Decision</code></td><td>A choice the agent has made</td><td><code>plan.hotel</code> = Hotel A</td></tr>
+          <tr><td><code>Progress</code></td><td>The state of a work step</td><td><code>step.hotel</code> = comparing options</td></tr>
+        </tbody>
+      </table></div>
+      <pre><span class="c"># Selected claims on req/1 after R2</span>
+- {"id": "trip.city", "type": "Assumption", "value": "Busan", "from": "req.1", "status": "confirmed"}
+- {"id": "constraint.budget", "type": "Constraint", "value": "₩500,000", "from": "req.2", "status": "confirmed"}
+- {"id": "plan.train", "type": "Decision", "value": "Tue 08:00 KTX", "from": "req.1", "status": "confirmed", "depends_on": ["trip.city"]}
+- {"id": "hotel.candidates", "type": "Finding", "value": ["Hotel C", "Hotel B", "Hotel A"], "from": "req.1", "status": "invalid", "depends_on": ["trip.city", "constraint.*"]}</pre>
+      <h3>① What to redo</h3>
+      <p>When a claim changes, GOA follows its dependency links and marks affected results as invalid so the task can recompute them. In this example, the budget affects the hotel options, hotel choice, and total. Changing the city also affects the train.</p>
+      <div class="diagram">
+        <svg viewBox="0 0 720 310" role="img" aria-label="Adding a budget makes the hotel options, hotel choice, and total stale. Changing the destination to Daegu also invalidates the train choice. The budget stays in place.">
+          <defs>
+            <marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk"/></marker>
+          </defs>
+          <text x="10" y="22" class="ptl">R2 adds a ₩500,000 budget</text>
+          <text x="380" y="22" class="ptl">Correction · Busan to Daegu</text>
+          <path d="M360,36 L360,270" class="ln dash"/>
+
+          <!-- panel A -->
+          <g>
+            <path d="M110,79 C118,79 116,59 123,59" class="ln" marker-end="url(#ah3)"/>
+            <path d="M110,79 C118,79 116,149 123,149" class="ln" marker-end="url(#ah3)"/>
+            <path d="M110,225 C118,225 116,155 123,155" class="ln" marker-end="url(#ah3)"/>
+            <path d="M225,149 C232,149 231,169 238,169" class="ln" marker-end="url(#ah3)"/>
+            <path d="M110,229 C175,229 180,176 238,176" class="ln" marker-end="url(#ah3)"/>
+            <path d="M225,59 L346,59 L346,249 L342,249" class="ln" marker-end="url(#ah3)"/>
+            <path d="M290,188 L290,228" class="ln" marker-end="url(#ah3)"/>
+            <rect x="10" y="60" width="100" height="38" rx="6" class="nd"/>
+            <text x="60" y="77" class="nid">trip.city</text><text x="60" y="91" class="nty">Assumption · Busan</text>
+            <rect x="10" y="210" width="100" height="38" rx="6" class="nd chg"/>
+            <text x="60" y="227" class="nid">constraint.budget</text><text x="60" y="241" class="nty">Constraint · new</text>
+            <rect x="125" y="40" width="100" height="38" rx="6" class="nd"/>
+            <text x="175" y="57" class="nid">plan.train</text><text x="175" y="71" class="nty">Decision · kept</text>
+            <rect x="125" y="130" width="100" height="38" rx="6" class="nd inv"/>
+            <text x="175" y="147" class="nid">hotel.candidates</text><text x="175" y="161" class="nty">Finding · redo</text>
+            <rect x="240" y="150" width="100" height="38" rx="6" class="nd inv"/>
+            <text x="290" y="167" class="nid">plan.hotel</text><text x="290" y="181" class="nty">Decision · redo</text>
+            <rect x="240" y="230" width="100" height="38" rx="6" class="nd inv"/>
+            <text x="290" y="247" class="nid">plan.total</text><text x="290" y="261" class="nty">Decision · redo</text>
+          </g>
+
+          <!-- panel B -->
+          <g transform="translate(370,0)">
+            <path d="M110,79 C118,79 116,59 123,59" class="ln" marker-end="url(#ah3)"/>
+            <path d="M110,79 C118,79 116,149 123,149" class="ln" marker-end="url(#ah3)"/>
+            <path d="M110,225 C118,225 116,155 123,155" class="ln" marker-end="url(#ah3)"/>
+            <path d="M225,149 C232,149 231,169 238,169" class="ln" marker-end="url(#ah3)"/>
+            <path d="M110,229 C175,229 180,176 238,176" class="ln" marker-end="url(#ah3)"/>
+            <path d="M225,59 L340,59 L340,226" class="ln" marker-end="url(#ah3)"/>
+            <path d="M290,188 L290,228" class="ln" marker-end="url(#ah3)"/>
+            <rect x="10" y="60" width="100" height="38" rx="6" class="nd chg"/>
+            <text x="60" y="77" class="nid">trip.city</text><text x="60" y="91" class="nty">Assumption · Daegu</text>
+            <rect x="10" y="210" width="100" height="38" rx="6" class="nd"/>
+            <text x="60" y="227" class="nid">constraint.budget</text><text x="60" y="241" class="nty">Constraint · kept</text>
+            <rect x="125" y="40" width="100" height="38" rx="6" class="nd inv"/>
+            <text x="175" y="57" class="nid">plan.train</text><text x="175" y="71" class="nty">Decision · redo</text>
+            <rect x="125" y="130" width="100" height="38" rx="6" class="nd inv"/>
+            <text x="175" y="147" class="nid">hotel.candidates</text><text x="175" y="161" class="nty">Finding · redo</text>
+            <rect x="240" y="150" width="100" height="38" rx="6" class="nd inv"/>
+            <text x="290" y="167" class="nid">plan.hotel</text><text x="290" y="181" class="nty">Decision · redo</text>
+            <rect x="240" y="230" width="100" height="38" rx="6" class="nd inv"/>
+            <text x="290" y="247" class="nid">plan.total</text><text x="290" y="261" class="nty">Decision · redo</text>
+          </g>
+
+          <!-- legend -->
+          <rect x="10" y="286" width="14" height="14" rx="3" class="nd chg"/><text x="30" y="297" class="lb" text-anchor="start">Changed by request</text>
+          <rect x="190" y="286" width="14" height="14" rx="3" class="nd inv"/><text x="210" y="297" class="lb" text-anchor="start">Recompute</text>
+          <rect x="310" y="286" width="14" height="14" rx="3" class="nd"/><text x="330" y="297" class="lb" text-anchor="start">Keep</text>
+          <text x="440" y="297" class="lb" text-anchor="start">Arrows follow dependencies</text>
+        </svg>
+      </div>
+      <h3>② How claims merge</h3>
+      <p>Git supplies the history and merge base. GOA compares the claim values and applies rules for each type.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Claim type</th><th>Rule</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><code>Constraint</code></td><td>Keep distinct conditions together.</td><td>A ₩500,000 budget and a morning departure.</td></tr>
+          <tr><td><code>Assumption</code></td><td>Prefer an explicit correction when only one side supplies one.</td><td>Change the destination to Daegu.</td></tr>
+          <tr><td><code>Decision</code></td><td>Prefer the recomputed value when the other side is invalid.</td><td>Pick a hotel under the new budget.</td></tr>
+          <tr><td><code>Finding</code></td><td>Use the more recent finding.</td><td>A later check finds the train is sold out.</td></tr>
+          <tr><td><code>Progress</code></td><td>Keep it on the task branch.</td><td>Comparing hotels.</td></tr>
+          <tr><td><code>Request</code></td><td>Preserve request records by ID.</td><td><code>req.1</code>, <code>req.2</code>, and <code>req.3</code>.</td></tr>
+        </tbody>
+      </table></div>
+      <h3>③ What the agent can say</h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Status</th><th>How it appears in a reply</th></tr></thead>
+        <tbody>
+          <tr><td><code>confirmed</code></td><td>“I’ve settled on the Tuesday morning train.”</td></tr>
+          <tr><td><code>in_progress</code></td><td>“I’m checking hotels again.”</td></tr>
+          <tr><td><code>invalid</code></td><td>Leave out the hotel options invalidated by the budget.</td></tr>
+          <tr><td><code>superseded</code></td><td>“I changed the destination to Daegu after your second message.”</td></tr>
+          <tr><td><code>conflict</code></td><td>Show the competing values and ask which to use.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="flow">
+      <h2><span class="num">04</span>How it works</h2>
+      <div class="flow">
+        <div class="stage c-git"><div class="rail"><div class="dot">1</div><div class="stem"></div></div>
+          <div class="body"><h5>Check for open tasks <span class="chip c-git">Git</span></h5>
+          <p>If no task is open, create a branch from <code>main</code> and start work.</p></div></div>
+        <div class="stage c-dec"><div class="rail"><div class="dot">2</div><div class="stem"></div></div>
+          <div class="body"><h5>Classify the follow-up <span class="chip c-dec">Decision model</span></h5>
+          <p>Decide whether the message adds information, corrects a premise, starts a separate task, cancels work, or asks for progress.</p></div></div>
+        <div class="stage c-llm"><div class="rail"><div class="dot">3</div><div class="stem"></div></div>
+          <div class="body"><h5>Send an interim reply <span class="chip c-llm">LLM</span></h5>
+          <p>Use the latest committed state for a follow-up. For a separate task, reply when its result is ready.</p></div></div>
+        <div class="stage c-onto"><div class="rail"><div class="dot">4</div><div class="stem"></div></div>
+          <div class="body"><h5>Commit each work step <span class="chip c-llm">LLM</span> <span class="chip c-onto">Ontology</span></h5>
+          <p>Store results as claims. When a claim changes, redo the work that depends on it.</p></div></div>
+        <div class="stage c-git"><div class="rail"><div class="dot">5</div><div class="stem"></div></div>
+          <div class="body"><h5>Merge into main <span class="chip c-git">Git</span> <span class="chip c-dec">Decision model</span></h5>
+          <p>Compare claims against the merge base and apply the rules for each type. Keep competing values when the rules and decision model leave a conflict unresolved.</p></div></div>
+        <div class="stage c-llm"><div class="rail"><div class="dot">6</div><div class="stem"></div></div>
+          <div class="body"><h5>Send the final answer <span class="chip c-llm">LLM</span></h5>
+          <p>When work is complete, write the final answer from the merged state and identify changes introduced by later requests.</p></div></div>
+      </div>
+
+    </section>
+
+    <section id="relation">
+      <h2><span class="num">05</span>Classifying follow-ups</h2>
+      <p>The decision backend returns a typed <code>choice</code>. It sees the new message, the work in progress, and clues from claims the message may affect. Typesafe Jev is one supported backend.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Key</th><th>Relation</th><th>Example</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td><code>k1</code></td><td>Supplement</td><td>“Keep it within ₩500,000.”</td><td>Add the condition to the open branch and redo the affected steps.</td></tr>
+          <tr><td><code>k2</code></td><td>Correction</td><td>“The trip is to Daegu.”</td><td>Replace the destination claim and invalidate its dependents.</td></tr>
+          <tr><td><code>k3</code></td><td>Independent</td><td>“What time is tomorrow’s meeting?”</td><td>Open a separate branch. Reply when it merges.</td></tr>
+          <tr><td><code>k4</code></td><td>Cancel</td><td>“The trip’s off. You can stop.”</td><td>Close the branch and keep its history under <code>cancelled/</code>. Confirm the cancellation.</td></tr>
+          <tr><td><code>k5</code></td><td>Progress</td><td>“How far along are you?”</td><td>Reply from the latest commit on the task branch.</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Example Jev request</h3>
+      <pre>{
+  "model": "typesafe/jev-1.14",
+  "state": {
+    "in_progress": "R1: Plan my business trip to Busan.",
+    "new": "Keep it within ₩500,000.",
+    "touches": [
+      "Constraint"
+    ]
+  },
+  "questions": {
+    "relation": {
+      "type": "choice",
+      "instructions": "How does the new request relate to the request in progress?",
+      "criteria": {
+        "k1": "Adds a condition or detail",
+        "k2": "Corrects a premise",
+        "k3": "Starts a separate task",
+        "k4": "Cancels the task",
+        "k5": "Asks for progress"
+      }
+    }
+  }
+}</pre>
+      <p>The option IDs stay neutral, with the meaning in their descriptions. This follows guidance on avoiding label bias in choice questions (<a href="https://arxiv.org/abs/2609.26758" style="color:var(--accent)">arXiv 2609.26758</a>). When several tasks are open, a second choice identifies the target. If the relation confidence falls below the default of 0.8, the agent asks for clarification: “Should I apply this to the trip plan or handle it separately?”</p>
+    </section>
+
+    <section id="answers">
+      <h2><span class="num">06</span>Interim and final answers</h2>
+      <div class="two">
+        <div class="box"><h4 class="c-llm">Interim answer</h4><ul>
+          <li>Use the latest relevant commit to say what is settled, what the follow-up changed, and what is still underway.</li>
+          <li>For a separate task, reply from its merged result while other work can continue.</li>
+        </ul></div>
+        <div class="box"><h4 class="c-git">Final answer</h4><ul>
+          <li>Answer the original task from the merged state. Use claim provenance to identify changes from later requests.</li>
+          <li>Show both values when a conflict needs the user’s decision. Include a separate task’s result only if it affects the final answer.</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section id="merge">
+      <h2><span class="num">07</span>Merging claims</h2>
+      <p>GOA runs a three-way merge over the base commit, <code>main</code>, and the request branch.</p>
+      <ol class="plain" style="padding-left:20px">
+        <li>Take a change made on one side or agreed on by both sides.</li>
+        <li>Apply the rules for the claim type when the sides changed it differently.</li>
+        <li>For a competing assumption or decision the rules leave unresolved, ask a typed yes/no question (<code>noul</code>): does the later request change the intent of the earlier one? At or above the default threshold of 0.7, take the later value. Otherwise keep both and ask the user.</li>
+      </ol>
+      <p>The task processes invalidated work before it finishes. Cancelled branches stay out of <code>main</code>. The two thresholds are recorded in <code>policy.yaml</code>.</p>
+    </section>
+
+    <section id="commit">
+      <h2><span class="num">08</span>Commit records</h2>
+      <p>Commit trailers tie work back to the request and the branch base. For a classified follow-up, they can also record the decision model, its confidence, and which claims became invalid.</p>
+      <pre><span class="t">constraint.budget: add (₩500,000)</span>
+
+<span class="k">Request</span>: req.2
+<span class="k">Relation</span>: k1 supplement (confidence 0.94)
+<span class="k">Branch</span>: req/1
+<span class="k">Base</span>: C0
+<span class="k">Invalidates</span>: hotel.candidates
+<span class="k">Decision-Model</span>: typesafe/jev-1.14</pre>
+      <p>GOA also stores replies as commits on <code>answers</code>. An interim reply records the branch and commit it used. A final reply points to the merge commit. Use <code>git show &lt;sha&gt;:state.yaml</code> to inspect the state behind a reply.</p>
+    </section>
+
+    <section id="examples">
+      <h2><span class="num">09</span>More examples</h2>
+      <h3>Changing the destination</h3>
+      <div class="trace">
+        <div class="tq">R1 · “Can you plan my business trip to Busan next week?”</div>
+        <div class="tl"><span class="tk ac">req/1</span>Check trains from Seoul to Busan and commit three hotel options.</div>
+        <div class="tq">R2 · “Sorry, the trip is to Daegu.”</div>
+        <div class="tl"><span class="tk dc">Choice</span>Classify it as a correction (0.91). Replace <code>trip.city</code> and mark the Busan train and hotel results invalid.</div>
+        <div class="ta"><strong>Interim</strong> “I’ve changed the destination to Daegu. I’m checking trains and hotels there now.”</div>
+        <div class="tl"><span class="tk ac">req/1</span>Check the Seoul–Dongdaegu route, pick a hotel, and merge the revised plan.</div>
+        <div class="ta"><strong>Final</strong> “For Daegu, take the 8:30 a.m. KTX from Seoul to Dongdaegu on Tuesday. Hotel B is ₩160,000 for two nights. I changed the destination after your second message.”</div>
+      </div>
+      <h3>Checking progress, then cancelling</h3>
+      <div class="trace">
+        <div class="tq">R1 · “Can you plan my business trip to Busan next week?”</div>
+        <div class="tq">R2 · “How far along are you?”</div>
+        <div class="tl"><span class="tk dc">Choice</span>Classify it as a progress question (0.96) and read the latest task commit.</div>
+        <div class="ta"><strong>Interim</strong> “I’ve settled on the Tuesday morning train and I’m comparing three hotels.”</div>
+        <div class="tq">R3 · “The trip’s off. You can stop.”</div>
+        <div class="tl"><span class="tk dc">Choice</span>Classify it as a cancellation (0.95) and archive the branch at <code>cancelled/req/1</code>.</div>
+        <div class="ta"><strong>Interim</strong> “I’ve stopped working on the trip. The train and hotel options are still in the task history.”</div>
+        <div class="tl">With no remaining task to merge, the cancellation confirmation is the last reply.</div>
+      </div>
+    </section>
+
+    <section id="later">
+      <h2><span class="num">10</span>Scope</h2>
+      <p>This design covers a single agent and its Git-backed conversation history. Long-term memory across sessions, coordination across multiple agents, and connectors to external files or databases are outside its scope.</p>
+    </section>
+
+    <footer>Git Ontology Agent design notes v2.1 · 2026-11-21 · The schedules, prices, and commit IDs in the examples are illustrative.</footer>
+  </main>
+</div>
+
+</body></html>
