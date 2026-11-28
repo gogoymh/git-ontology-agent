@@ -132,3 +132,65 @@ test('restores previous conversation history in order and skips duplicates on /c
 	assert.equal(f.split('R1 › Plan my Busan trip').length - 1, 1, `history duplicated on /connect:\n${f}`);
 	ui.unmount();
 });
+
+const turn = (n: number, text: string, commit: string) => [
+	{type: 'user' as const, n, text},
+	{type: 'answer' as const, kind: 'interim' as const, text: `On it: ${text}`, request: `req.${n}`, relation: '', relation_name: '', source: `req/${n}@1111111`, commit},
+];
+
+test('history fills prompt recall after a restart and keeps it across /connect', async () => {
+	const engines = [new FakeEngine(), new FakeEngine()];
+	let starts = 0;
+	const ui = render(
+		<App boot={{llm: 'offline'}} deps={{listConnections: async () => auth('saved'), saveDefault: async () => {}, start: () => engines[starts++]!}} />,
+	);
+	engines[0]!.emit({...READY, llm: 'offline'} as typeof READY);
+	engines[0]!.emit({type: 'history', items: [...turn(1, 'Plan my Busan trip', 'c1'), ...turn(2, 'Budget under 500k', 'c2')], more: false});
+	await frameWith(ui.lastFrame, 'On it: Budget under 500k');
+	await type(ui.stdin, KEY.up);
+	await frameWith(ui.lastFrame, '› Budget under 500k');
+	await type(ui.stdin, KEY.up);
+	await frameWith(ui.lastFrame, '› Plan my Busan trip');
+	await type(ui.stdin, KEY.enter);
+	assert.deepEqual(engines[0]!.sent, [{type: 'submit', text: 'Plan my Busan trip'}]);
+
+	await type(ui.stdin, '/connect', KEY.enter);
+	await frameWith(ui.lastFrame, 'Connect a model');
+	await type(ui.stdin, KEY.enter);
+	engines[1]!.emit(READY);
+	await frameWith(ui.lastFrame, 'Connected');
+	await type(ui.stdin, KEY.up, KEY.up, KEY.up); // /connect, Plan my Busan trip, Budget under 500k
+	await frameWith(ui.lastFrame, '› Budget under 500k');
+	ui.unmount();
+});
+
+test('history command loads older turns once and says when none are left', async () => {
+	const engine = new FakeEngine();
+	const ui = render(<App boot={{llm: 'offline'}} deps={{listConnections: async () => auth(), saveDefault: async () => {}, start: () => engine}} />);
+	engine.emit({...READY, llm: 'offline'} as typeof READY);
+	engine.emit({type: 'history', items: turn(3, 'Newest request', 'c3'), more: true});
+	await frameWith(ui.lastFrame, 'On it: Newest request');
+
+	await type(ui.stdin, '/history 2', KEY.enter);
+	assert.deepEqual(engine.sent.at(-1), {type: 'history', limit: 2});
+	const page = {type: 'history' as const, items: [...turn(1, 'Oldest request', 'c1'), ...turn(2, 'Middle request', 'c2')], more: false, older: true};
+	engine.emit(page);
+	let f = await frameWith(ui.lastFrame, 'start of the conversation');
+	assert.ok(f.indexOf('earlier turns') < f.indexOf('R1 › Oldest request'), f);
+	assert.ok(f.indexOf('R1 › Oldest request') < f.indexOf('R2 › Middle request'), f);
+	await type(ui.stdin, KEY.up, KEY.up, KEY.up); // /history 2, Newest request, Middle request
+	await frameWith(ui.lastFrame, '› Middle request');
+	await type(ui.stdin, '\u0015');
+
+	engine.emit(page); // the same page again (a repeated command) draws nothing twice
+	await type(ui.stdin, '/history', KEY.enter);
+	assert.deepEqual(engine.sent.at(-1), {type: 'history', limit: 50});
+	engine.emit({type: 'history', items: [], more: false, older: true});
+	f = await frameWith(ui.lastFrame, 'No older turns.');
+	assert.equal(f.split('R1 › Oldest request').length - 1, 1, `older page drawn twice:\n${f}`);
+
+	await type(ui.stdin, '/history x', KEY.enter);
+	await frameWith(ui.lastFrame, 'Usage: /history [N]');
+	assert.equal(engine.sent.filter(c => c.type === 'history').length, 2);
+	ui.unmount();
+});

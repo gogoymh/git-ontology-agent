@@ -111,10 +111,20 @@ export function Note({text, color}: {text: string; color?: string}) {
 }
 
 /** One line of input with a cursor, history and paste. Enter sends. */
-export function Prompt({onSubmit, placeholder, active}: {onSubmit: (text: string) => void; placeholder: string; active: boolean}) {
+/** `history` is newest first and owned by the caller, so it survives /connect and is seeded from git on restart. */
+export function Prompt({
+	onSubmit,
+	placeholder,
+	active,
+	history = [],
+}: {
+	onSubmit: (text: string) => void;
+	placeholder: string;
+	active: boolean;
+	history?: string[];
+}) {
 	const [value, setValue] = useState('');
 	const [cursor, setCursor] = useState(0);
-	const [history, setHistory] = useState<string[]>([]);
 	const [back, setBack] = useState(-1);
 	const put = (v: string, c = v.length) => {
 		setValue(v);
@@ -129,7 +139,6 @@ export function Prompt({onSubmit, placeholder, active}: {onSubmit: (text: string
 	);
 	const send = (text: string) => {
 		if (!text.trim()) return;
-		setHistory(h => [text, ...h.filter(x => x !== text)].slice(0, 50));
 		setBack(-1);
 		onSubmit(text);
 	};

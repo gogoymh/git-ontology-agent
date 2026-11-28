@@ -3,10 +3,12 @@
 In (one object per line; a line that is not JSON is taken as a message):
     {"type": "submit", "text": "..."}     a user message, any time, even while it works
     {"type": "log"}                        the conversation as a git graph
+    {"type": "history", "limit": N}        N older turns than the ones sent so far (`before`: an answers sha)
     {"type": "quit"}                       stop now (end of input instead waits until the work is done)
 Out:
     ready     {version, llm, model, decision, lang, repo}
-    history   {items: [user|answer, ...]}  recent turns read from git when the repo is not empty
+    history   {items: [user|answer, ...], more}  recent turns read from git when the repo is not empty;
+              older: true when it answers a history command (items may be [], more says if any remain)
     user      {n, text}                    n is the request number (null for a reply to a question)
     answer    {kind, text, request, relation, relation_name, source, commit}
     step      {branch, subject}            after every work commit
@@ -31,6 +33,7 @@ from .agent import NAMES, Agent, Answer
 _log = log.get("serve")
 GIVE_UP = 3   # at end of input, stop waiting after this many failed ticks in a row
 HISTORY_LIMIT = 50
+HISTORY_MAX = 1000   # one history command never replays more answers than this
 
 
 class Inbox:
@@ -98,13 +101,26 @@ class Server:
         self.failed = False
         self.errors = 0   # consecutive failed ticks
         self.history_limit = history_limit
+        self.oldest = ""   # the oldest answers commit sent so far; a history command pages back from it
 
-    def history(self) -> None:
-        if not hasattr(self.agent, "history") or self.history_limit <= 0:
+    def history(self, limit: Optional[int] = None, before: Optional[str] = None) -> None:
+        """At start (limit None): the latest turns, if any. On a history command: the page older than the last."""
+        older = limit is not None
+        limit = min(self.history_limit if limit is None else limit, HISTORY_MAX)
+        if not hasattr(self.agent, "history") or (limit <= 0 and not older):
             return
-        items = self.agent.history(limit=self.history_limit)
-        if items:
-            self.ev.emit("history", items=items)
+        before = self.oldest if before is None else before
+        items = self.agent.history(limit=limit, before=before) if limit > 0 else []
+        shas = [i["commit"] for i in items if i["type"] == "answer"]
+        if shas:
+            self.oldest = shas[0]
+        more = self.agent.has_older(self.oldest) if (self.oldest and (shas or before)) else False
+        _log.info("history %s: %d items before=%s more=%s", "page" if older else "start", len(items),
+                  (before or "head")[:7], more)
+        if older:
+            self.ev.emit("history", items=items, more=more, older=True)
+        elif items:
+            self.ev.emit("history", items=items, more=more)
 
     def tasks(self) -> None:
         with self.tasks_lock:
@@ -145,6 +161,14 @@ class Server:
             return False
         if kind == "log":
             self.ev.emit("log", text=self.agent.repo.git("log", "--graph", "--all", "--format=%h %d %s", "-n", "40"))
+        elif kind == "history":
+            try:
+                limit = int(cmd.get("limit") or self.history_limit or HISTORY_LIMIT)
+            except (TypeError, ValueError):
+                self.ev.emit("error", message=f"bad history limit {cmd.get('limit')!r}")
+                return True
+            before = cmd.get("before")
+            self.history(limit=max(1, limit), before=str(before) if before else None)
         elif kind == "submit":
             text = str(cmd.get("text", ""))
             if text.strip():

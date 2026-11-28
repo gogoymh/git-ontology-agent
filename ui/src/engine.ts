@@ -19,7 +19,8 @@ export type AnswerEvent = {
 };
 export type UserEvent = {type: 'user'; n: number | null; text: string};
 export type HistoryItem = UserEvent | AnswerEvent;
-export type HistoryEvent = {type: 'history'; items: HistoryItem[]};
+/** `older` marks a page asked for with a history command; `more` says whether older turns remain. */
+export type HistoryEvent = {type: 'history'; items: HistoryItem[]; more?: boolean; older?: boolean};
 export type OpenTask = {n: number; title: string; branch: string};
 export type EngineEvent =
 	| Ready
@@ -33,7 +34,7 @@ export type EngineEvent =
 	| {type: 'error'; message: string}
 	| {type: 'exit'; code: number | null; stderr: string};
 
-export type Command = {type: 'submit'; text: string} | {type: 'log'} | {type: 'quit'};
+export type Command = {type: 'submit'; text: string} | {type: 'log'} | {type: 'history'; limit: number} | {type: 'quit'};
 
 export interface Engine {
 	on(fn: (e: EngineEvent) => void): () => void;
