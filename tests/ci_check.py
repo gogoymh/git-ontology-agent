@@ -1,4 +1,4 @@
-"""Checks that the CI docs job runs the README, demo, banner, intro deck and polish skill checks (mission criterion; not a unittest).
+"""Checks that the CI docs job runs the README, demo, banner, intro deck (and its rebuild) and polish skill checks (mission criterion; not a unittest).
 
 Only live `- run:` steps count: a commented-out step (`# - run: ...`) is ignored.
 
@@ -13,6 +13,8 @@ NEED = ["python tests/readme_check.py", "python tests/readme_links_check.py",
         "python tests/readme_demo_check.py", "python tests/banner_check.py",
         "python tests/banner_check.py size", "python tests/banner_check.py light"] + \
        ["python tests/deck_check.py %s" % m for m in ("valid", "count", "korean", "story")] + \
+       ["python tests/deck_build_check.py pinned", "python tests/deck_build_check.py fresh",
+        "node ui/scripts/license-check.mjs scripts"] + \
        ["python tests/polish_skill_check.py %s" % m
         for m in ("frontmatter", "start", "list", "particle", "meaning", "middot")] + \
        ["python tests/korean_particle_check.py %s" % m for m in ("rules", "mutations")] + \

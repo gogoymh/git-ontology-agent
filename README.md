@@ -431,7 +431,7 @@ The UI ships only permissively licensed packages (MIT, ISC); `node ui/scripts/li
 
 The banner is built by `scripts/make_banner.py` from Codex-generated art; candidates live in [`docs/assets/candidates`](docs/assets/candidates).
 
-The Korean intro deck ([`docs/goa-intro-ko.pptx`](docs/goa-intro-ko.pptx)) is rebuilt with `node scripts/make_deck_ko.js` (requires `pptxgenjs`).
+The Korean intro deck ([`docs/goa-intro-ko.pptx`](docs/goa-intro-ko.pptx)) is rebuilt with `npm --prefix scripts ci && node scripts/make_deck_ko.js` (pins `pptxgenjs`, MIT).
 
 ## Out of scope (for now)
 
