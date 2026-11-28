@@ -1,0 +1,13 @@
+{
+  "name": "goa-scripts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Build scripts for Git Ontology Agent docs (the Korean intro deck)",
+  "license": "MIT",
+  "scripts": {
+    "deck": "node make_deck_ko.js"
+  },
+  "dependencies": {
+    "pptxgenjs": "4.0.1"
+  }
+}

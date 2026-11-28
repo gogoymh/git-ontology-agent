@@ -1,13 +1,15 @@
 // Every package the UI ships with (dependencies and their type peers, not devDependencies) must carry a
 // license that allows commercial use. Reads package-lock.json, so it needs no install; when node_modules
-// is there, each installed package.json must agree with the lockfile.
-//   node ui/scripts/license-check.mjs
+// is there, each installed package.json must agree with the lockfile. An optional folder (relative to the
+// repository root) checks another package, such as the deck builder in scripts/.
+//   node ui/scripts/license-check.mjs [scripts]
 import {existsSync, readFileSync} from 'node:fs';
-import {dirname, join} from 'node:path';
+import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const ALLOWED = new Set(['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', '0BSD', 'CC0-1.0', 'BlueOak-1.0.0', 'Unlicense']);
+const ui = join(dirname(fileURLToPath(import.meta.url)), '..');
+const root = process.argv[2] ? resolve(ui, '..', process.argv[2]) : ui;
+const ALLOWED = new Set(['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', '0BSD', 'CC0-1.0', 'BlueOak-1.0.0', 'Unlicense', 'Zlib']);
 
 /** SPDX expression: OR needs one allowed side, AND needs both. */
 function allowed(expr) {
@@ -20,7 +22,7 @@ function allowed(expr) {
 const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8'));
 const shipped = Object.entries(lock.packages).filter(([path, p]) => path && !p.dev);
 if (!shipped.length) {
-	console.error('license-check: package-lock.json lists no shipped packages');
+	console.error(`license-check: ${join(root, 'package-lock.json')} lists no shipped packages`);
 	process.exit(1);
 }
 const bad = [];

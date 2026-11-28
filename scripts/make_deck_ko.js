@@ -1,5 +1,5 @@
 // Builds docs/goa-intro-ko.pptx, a 3-slide Korean intro to Git Ontology Agent.
-//   npm i pptxgenjs && node scripts/make_deck_ko.js [out.pptx] [firstSlide]
+//   npm --prefix scripts ci && node scripts/make_deck_ko.js [out.pptx] [firstSlide]
 // firstSlide (1-3) moves one slide to the front; used only for Quick Look previews.
 const path = require("path");
 const pptxgen = require("pptxgenjs");
