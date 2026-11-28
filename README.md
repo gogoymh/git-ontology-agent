@@ -18,6 +18,7 @@
   <a href="#examples">Examples</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#terminal-ui">Terminal UI</a> ·
+  <a href="#mcp">MCP</a> ·
   <a href="#providers">Connect a model</a> ·
   <a href="docs/goa-intro-ko.pptx">소개 자료(한국어)</a>
 </p>
@@ -339,6 +340,26 @@ R2 › Oh, keep the budget under 500,000 won
 - **No surprises.** Without Node.js 22+ or a built UI, `goa` falls back to the plain-text `goa chat`. From a clone, `goa ui` builds it once (`npm --prefix ui install`). The UI logs to `GOA_UI_LOG` (default `<tmp>/goa-ui.log`).
 
 Other front ends can drive the same engine: `goa serve` reads `{"type": "submit", "text": "..."}` lines on stdin and writes `ready`, `history`, `user`, `answer`, `step`, `tasks` and `error` events (`{"type": "history", "limit": N}` pages back) as JSON lines, with logs on stderr.
+
+## MCP
+
+After installing GOA, register `goa mcp` as a local stdio server in your MCP client. For clients with an `mcpServers` JSON config, add this entry and replace the repository path with an absolute path for the conversation. Use the absolute path to the Python interpreter that installed GOA if your client cannot find it.
+
+```json
+{
+  "mcpServers": {
+    "goa": {
+      "command": "python3",
+      "args": ["-m", "goa", "mcp", "--repo", "/absolute/path/to/goa-conversation", "--llm", "offline", "--decision", "local"]
+    }
+  }
+}
+```
+
+- `goa_ask` takes `{"messages": ["Plan my Busan business trip next week", "Keep the budget under 500,000 won"]}` and returns interim and final answers with Git source and answer commits. All messages are submitted in order before the engine runs the work. If `needs_clarification` is true, send the reply in the next call on the same connection.
+- `goa_history` takes `{}` for recent turns. Set `limit` to change the page size and pass `next_before` from the result as `before` to read an older page.
+
+The example uses the offline demo skills. Choose `--llm auto --decision auto` to use your [configured provider](#providers). Use one running server per conversation repository. Omit `--repo` for a temporary conversation that is removed on normal shutdown.
 
 ## Providers
 

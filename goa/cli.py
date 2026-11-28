@@ -1,4 +1,4 @@
-"""Command line: `goa` (the React terminal UI), `goa ask`, `goa chat`, `goa serve`, `goa auth`, `goa login`,
+"""Command line: `goa` (the React terminal UI), `goa ask`, `goa chat`, `goa serve`, `goa mcp`, `goa auth`, `goa login`,
 `goa demo`, `goa log`."""
 from __future__ import annotations
 
@@ -246,6 +246,16 @@ def cmd_serve(args) -> int:
                      history_limit=args.history)
 
 
+def cmd_mcp(args) -> int:
+    from .mcp import serve_mcp
+
+    _resolve(args)
+    repo_dir = contextlib.nullcontext(args.repo) if args.repo else tempfile.TemporaryDirectory(prefix="goa-mcp-")
+    with repo_dir as repo, _mock(args):
+        return serve_mcp(lambda: Agent(repo, llm=args.llm, decision=args.decision, lang=args.lang),
+                         sys.stdin.buffer, sys.stdout.buffer)
+
+
 def cmd_auth(args) -> int:
     """Every way to connect (sign-ins and API keys), and the default `auto` would pick."""
     if args.use:
@@ -387,6 +397,9 @@ def main(argv=None) -> int:
     sv.add_argument("--history", type=int, default=HISTORY_LIMIT, metavar="N",
                     help=f"answers replayed at start (default {HISTORY_LIMIT}; 0 = none)")
     sv.set_defaults(fn=cmd_serve)
+    m = sub.add_parser("mcp", help="serve GOA tools to local MCP clients over stdio")
+    common(m)
+    m.set_defaults(fn=cmd_mcp)
     au = sub.add_parser("auth", help="list sign-ins and API keys; --use saves the default")
     au.add_argument("--use", metavar="PROVIDER", help="save the default --llm (e.g. claude-code, codex, openrouter)")
     au.add_argument("--json", action="store_true", help="machine-readable")
