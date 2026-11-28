@@ -22,7 +22,7 @@ from .llm import PROVIDERS as LLMS
 from .llm import make_llm
 from .serve import Events, Inbox, next_number
 from .serve import ready as emit_ready
-from .serve import serve
+from .serve import HISTORY_LIMIT, serve
 
 _log = log.get("cli")
 
@@ -242,7 +242,8 @@ def cmd_serve(args) -> int:
     _resolve(args)
     with _mock(args):
         return serve(lambda on_answer, on_step: Agent(args.repo, llm=args.llm, decision=args.decision,
-                                                      lang=args.lang, on_answer=on_answer, on_step=on_step))
+                                                      lang=args.lang, on_answer=on_answer, on_step=on_step),
+                     history_limit=args.history)
 
 
 def cmd_auth(args) -> int:
@@ -383,6 +384,8 @@ def main(argv=None) -> int:
     c.set_defaults(fn=cmd_chat)
     sv = sub.add_parser("serve", help="JSON lines over stdin/stdout, for the UI and other front ends")
     common(sv, ".goa")
+    sv.add_argument("--history", type=int, default=HISTORY_LIMIT, metavar="N",
+                    help=f"answers replayed at start (default {HISTORY_LIMIT}; 0 = none)")
     sv.set_defaults(fn=cmd_serve)
     au = sub.add_parser("auth", help="list sign-ins and API keys; --use saves the default")
     au.add_argument("--use", metavar="PROVIDER", help="save the default --llm (e.g. claude-code, codex, openrouter)")

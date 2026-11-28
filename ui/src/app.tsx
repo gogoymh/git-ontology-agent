@@ -33,6 +33,8 @@ export function App({boot, deps}: {boot: Boot; deps: Deps}) {
 	const connSeq = useRef(0);
 	const ids = useRef(0);
 	const headers = useRef(0);
+	const shown = useRef(new Set<string>()); // answers commits on screen: history never draws one twice
+	const [recall, setRecall] = useState<string[]>([]); // prompt ↑↓, newest first
 	const t = strings(ready?.lang ?? detectLang(boot.lang));
 
 	const add = (...items: NewItem[]) =>
@@ -45,19 +47,34 @@ export function App({boot, deps}: {boot: Boot; deps: Deps}) {
 				add({kind: 'header', ready: e, first: headers.current++ === 0});
 				setPhase('ready');
 				break;
-			case 'history':
-				if (headers.current <= 1 && e.items.length > 0) {
-					add(
-						...e.items.map<NewItem>(item =>
-							item.type === 'user' ? {kind: 'user', n: item.n, text: item.text} : {kind: 'answer', a: item},
-						),
-					);
+			case 'history': {
+				// a user turn is drawn with the answer after it, so both are skipped when that answer is on screen
+				const fresh: NewItem[] = [];
+				let users: NewItem[] = [];
+				for (const item of e.items) {
+					if (item.type === 'user') users.push({kind: 'user', n: item.n, text: item.text});
+					else {
+						if (!shown.current.has(item.commit)) {
+							shown.current.add(item.commit);
+							fresh.push(...users, {kind: 'answer', a: item});
+						}
+						users = [];
+					}
 				}
+				const asked = e.items.flatMap(i => (i.type === 'user' ? [i.text] : [])).reverse();
+				setRecall(r => uniq(e.older ? [...r, ...asked] : [...r, ...asked.filter(x => !r.includes(x))]));
+				log(`history ${e.older ? 'page' : 'start'}: ${e.items.length} items, ${fresh.length} new, more=${e.more ?? '?'}`);
+				if (e.older) {
+					if (fresh.length) add({kind: 'note', text: t.earlier}, ...fresh, {kind: 'note', text: t.earlierEnd(!!e.more)});
+					else add({kind: 'note', text: t.noOlder});
+				} else if (fresh.length) add(...fresh);
 				break;
+			}
 			case 'user':
 				add({kind: 'user', n: e.n, text: e.text});
 				break;
 			case 'answer':
+				shown.current.add(e.commit);
 				add({kind: 'answer', a: e});
 				break;
 			case 'step':
@@ -149,11 +166,18 @@ export function App({boot, deps}: {boot: Boot; deps: Deps}) {
 
 	const submit = (raw: string) => {
 		const text = raw.trim();
+		setRecall(r => uniq([raw, ...r]));
 		if (text.startsWith('/')) {
-			const cmd = text.split(/\s+/)[0]!.toLowerCase();
+			const [head, arg] = text.split(/\s+/);
+			const cmd = head!.toLowerCase();
 			log(`slash ${cmd}`);
 			if (cmd === '/help') add({kind: 'note', text: t.help.join('\n')});
 			else if (cmd === '/log') engine.current?.send({type: 'log'});
+			else if (cmd === '/history') {
+				const n = arg === undefined ? 50 : Number(arg);
+				if (Number.isInteger(n) && n > 0) engine.current?.send({type: 'history', limit: n});
+				else add({kind: 'note', text: t.historyUsage, color: theme.error});
+			}
 			else if (cmd === '/connect') void choose(true);
 			else if (cmd === '/quit' || cmd === '/exit') exit();
 			else add({kind: 'note', text: t.unknown(cmd), color: theme.error});
@@ -204,7 +228,7 @@ export function App({boot, deps}: {boot: Boot; deps: Deps}) {
 						</Box>
 					</Box>
 				))}
-				{phase !== 'pick' && <Prompt active={phase === 'ready'} placeholder={t.placeholder} onSubmit={submit} />}
+				{phase !== 'pick' && <Prompt active={phase === 'ready'} placeholder={t.placeholder} onSubmit={submit} history={recall} />}
 				<Box paddingX={1} justifyContent="space-between">
 					<Text color={theme.muted}>{t.hints}</Text>
 					<Text color={theme.muted}>
@@ -216,6 +240,9 @@ export function App({boot, deps}: {boot: Boot; deps: Deps}) {
 		</>
 	);
 }
+
+const RECALL = 200;
+const uniq = (xs: string[]) => [...new Set(xs)].slice(0, RECALL);
 
 function Busy({text}: {text: string}) {
 	return (

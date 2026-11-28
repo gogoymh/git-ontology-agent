@@ -335,9 +335,10 @@ R2 › Oh, keep the budget under 500,000 won
 - **The prompt never locks.** A message sent mid-task gets in between two work steps, and every open `req/<n>` shows its latest commit live.
 - **It reads like a chat.** Interim answers are amber `◐`, final answers green `●`, and each names the commit it was written from.
 - **Connect once.** The first run lists your sign-ins and API keys; pick one with ↑↓ and enter and it is remembered. `/connect` switches later, `/log` shows the git graph.
+- **Picks up where you left off.** A restart replays the last 50 turns from git and fills ↑↓ with your past messages; `/history [N]` loads older ones.
 - **No surprises.** Without Node.js 22+ or a built UI, `goa` falls back to the plain-text `goa chat`. From a clone, `goa ui` builds it once (`npm --prefix ui install`). The UI logs to `GOA_UI_LOG` (default `<tmp>/goa-ui.log`).
 
-Other front ends can drive the same engine: `goa serve` reads `{"type": "submit", "text": "..."}` lines on stdin and writes `ready`, `user`, `answer`, `step`, `tasks` and `error` events as JSON lines, with logs on stderr.
+Other front ends can drive the same engine: `goa serve` reads `{"type": "submit", "text": "..."}` lines on stdin and writes `ready`, `history`, `user`, `answer`, `step`, `tasks` and `error` events (`{"type": "history", "limit": N}` pages back) as JSON lines, with logs on stderr.
 
 ## Providers
 

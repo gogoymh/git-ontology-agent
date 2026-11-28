@@ -91,6 +91,7 @@ class Agent:
                      [int(b.split("/")[-1]) for b in self.repo.branches() if b.split("/")[-1].isdigit()] + [0])
         self.clock = max((st.clock() for st in states), default=0)
         self.pending: Optional[Dict[str, Any]] = None
+        self._incoming: Optional[Tuple[str, str]] = None
         self.answers: List[Answer] = []
         self.lock = threading.RLock()
         _log.info("agent ready repo=%s llm=%s decision=%s lang=%s open=%d", self.repo.path, self.llm.name,
@@ -107,6 +108,7 @@ class Agent:
                 return self._clarified(text)
             self.n += 1
             req = f"req.{self.n}"
+            self._incoming = (req, text)  # the first answer to it keeps the message (user.txt) for history
             open_ = self.open_tasks()
             _log.info("submit %s (%d open): %s", req, len(open_), text)
             if not open_:
@@ -154,27 +156,30 @@ class Agent:
     def busy(self) -> bool:
         return bool(self.open_tasks())
 
-    def history(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Recent conversation turns (user messages and answers) read from git in chronological order."""
+    def history(self, limit: int = 50, before: str = "") -> List[Dict[str, Any]]:
+        """Conversation turns (user messages and answers) read from git in chronological order.
+
+        `limit` answers commits, newest first, or the ones older than the `answers` commit `before`.
+        A user turn is shown at the first answer to its request: request numbers only grow, so a request
+        is new when its number beats every request answered before it (older commits included).
+        Its text is the commit's `user.txt`; only repos written before that file existed fall back
+        to reading the one branch the answer names, never every cancelled branch."""
         if limit <= 0:
             return []
         with self.lock:
             if not self.repo.rev("answers"):
                 return []
-            req_texts: Dict[str, str] = {}
-            refs = ["main"] + [t.branch for t in self.open_tasks()] + self.repo.branches("cancelled/req/")
-            for ref in refs:
-                for c in self.repo.read_state(ref).of(REQUEST):
-                    if c.id not in req_texts and c.value is not None:
-                        req_texts[c.id] = str(c.value)
-            commits = list(reversed(self.repo.log("answers", n=limit)))
+            try:
+                commits = list(reversed(self.repo.log(f"{before}^" if before else "answers", n=limit)))
+            except RuntimeError:  # `before` is the first answer (no parent) or unknown
+                return []
             if not commits:
                 return []
+            max_n = self._max_request_before(commits[0][0])
             specs = [f"{sha}:{name}" for sha, _ in commits for name in ("answer.txt", "user.txt")]
             blobs = self.repo.read_blobs(specs)
+            states: Dict[str, State] = {}
             items: List[Dict[str, Any]] = []
-            seen: set = set()
-            max_n = 0
             for sha, body in commits:
                 tr = _trailers(body)
                 kind = tr.get("Answer", "")
@@ -185,14 +190,13 @@ class Agent:
                 user_blob = (blobs.get(f"{sha}:user.txt") or "").rstrip("\n")
                 for rid in sorted(req_ids, key=_req_num):
                     n = _req_num(rid)
-                    if rid in seen or (n and n <= max_n):
+                    if not n or n <= max_n:
                         continue
-                    text = req_texts.get(rid) or (user_blob if len(req_ids) == 1 else "")
+                    max_n = n
+                    text = user_blob if user_blob and len(req_ids) == 1 else \
+                        self._legacy_request_text(rid, tr.get("Source", ""), states)
                     if text:
-                        items.append({"type": "user", "n": n or None, "text": text})
-                        seen.add(rid)
-                        if n > max_n:
-                            max_n = n
+                        items.append({"type": "user", "n": n, "text": text})
                 rel_raw = tr.get("Relation", "")
                 rel_code = rel_raw.split()[0] if rel_raw else ""
                 rel = rel_code if rel_code in NAMES else ""
@@ -207,7 +211,16 @@ class Agent:
                     "source": tr.get("Source", ""),
                     "commit": sha,
                 })
+            if states:
+                _log.info("history: read %d branch state(s) for answers without user.txt", len(states))
             return items
+
+    def has_older(self, sha: str) -> bool:
+        """Whether the `answers` commit `sha` has older answers behind it."""
+        try:
+            return bool(sha) and bool(self.repo.git("rev-parse", "-q", "--verify", f"{sha}^"))
+        except RuntimeError:
+            return False
 
     # --- steps --------------------------------------------------------------------
     def _route(self, text: str) -> Skill:
@@ -403,6 +416,9 @@ class Agent:
              source_ref: str = "", sha: str = "", user_text: str = "") -> Answer:
         ref = source_ref or task.branch
         sha = sha or self.repo.rev(ref) or ""
+        if self._incoming and self._incoming[0] == req:
+            user_text = user_text or self._incoming[1]
+            self._incoming = None
         facts = {**facts, "answer_type": kind}
         text = self.responder.write(facts)
         source = f"{ref}@{self.repo.short(sha)}"
@@ -508,6 +524,29 @@ class Agent:
                     if r.strip():
                         done.add(r.strip())
         return done
+
+    def _max_request_before(self, sha: str) -> int:
+        """The highest request number answered before `sha`: one `git log` of trailers, no blobs, no states."""
+        try:
+            out = self.repo.git("log", "--format=%(trailers:key=Request,valueonly,separator=%x2C)", f"{sha}^")
+        except RuntimeError:  # first answer: nothing before it
+            return 0
+        return max((_req_num(r.strip()) for r in out.replace("\n", ",").split(",")), default=0)
+
+    def _legacy_request_text(self, rid: str, source: str, states: Dict[str, State]) -> str:
+        """Text of a request whose answer has no user.txt (written before every request kept one).
+        Reads only the branch the answer came from: req/<m>, or cancelled/req/<m> once it was cancelled, then main."""
+        ref = source.rpartition("@")[0]
+        refs = [ref, f"cancelled/{ref}"] if ref.startswith("req/") else [ref] if ref else []
+        for r in [*refs, "main"]:
+            if r not in states:
+                if not self.repo.rev(r):
+                    continue
+                states[r] = self.repo.read_state(r)
+            c = states[r].get(rid)
+            if c is not None and c.type == REQUEST and c.value is not None:
+                return str(c.value)
+        return ""
 
 
 def _trailers(body: str) -> Dict[str, str]:
