@@ -31,6 +31,16 @@ jobs:
       - run: python tests/banner_check.py
       - run: python tests/banner_check.py size
       - run: python tests/banner_check.py light
+      - run: python tests/polish_skill_check.py frontmatter
+      - run: python tests/polish_skill_check.py start
+      - run: python tests/polish_skill_check.py list
+      - run: python tests/polish_skill_check.py particle
+      - run: python tests/polish_skill_check.py meaning
+      - run: python tests/polish_skill_check.py middot
+      - run: python tests/korean_particle_check.py rules
+      - run: python tests/korean_particle_check.py mutations
+      - run: python tests/polish_skill_guard.py unpaired
+      - run: python tests/polish_skill_guard.py middot
   ui:
     runs-on: ubuntu-22.04
     steps:

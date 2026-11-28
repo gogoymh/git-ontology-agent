@@ -31,6 +31,11 @@ MUTANTS = {
     "banner step removed": re.sub(r"^\s*- run: python tests/banner_check\.py\n", "", CI, flags=re.M),
     "demo step moved to ui job": CI.replace("      - run: python tests/readme_demo_check.py\n", "", 1)
                                    + "      - run: python tests/readme_demo_check.py\n",
+    "polish particle step removed": CI.replace("      - run: python tests/polish_skill_check.py particle\n", "", 1),
+    "particle mutations step commented": CI.replace("- run: python tests/korean_particle_check.py mutations",
+                                                    "# - run: python tests/korean_particle_check.py mutations", 1),
+    "polish guard moved to ui job": CI.replace("      - run: python tests/polish_skill_guard.py unpaired\n", "", 1)
+                                     + "      - run: python tests/polish_skill_guard.py unpaired\n",
 }
 assert run(CI) == 0, "real workflow should pass"
 bad = [name for name, ci in MUTANTS.items() if ci == CI or run(ci) == 0]
