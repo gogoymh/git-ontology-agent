@@ -1,6 +1,8 @@
 """Checks the polish skill's patterns and fixed examples (mission criterion; not a unittest).
 
-    python3 tests/polish_skill_check.py frontmatter|start|list|particle|meaning
+    python3 tests/polish_skill_check.py frontmatter|start|list|particle|meaning|middot [SKILL.md]
+
+Every mode fails when a '- 전:' line lacks its '- 후:' line (or the reverse) or either side is empty.
 """
 import re
 import sys
@@ -9,9 +11,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from korean_particle import attached, mismatches  # noqa: E402
 
-PATH = Path(__file__).resolve().parent.parent / ".claude" / "skills" / "polish" / "SKILL.md"
+PATH = Path(sys.argv[2]) if len(sys.argv) > 2 else \
+    Path(__file__).resolve().parent.parent / ".claude" / "skills" / "polish" / "SKILL.md"
 STOCK = re.compile(r"가장 명확|가장 시급|완결된 작업|명확한 범위")
 PARTICLE = re.compile(r"을\(를\)|를\(을\)|이\(가\)|가\(이\)|은\(는\)|는\(은\)|와\(과\)|과\(와\)|\(으\)로")
+MIDDOT = re.compile("[\u00b7\u318d\u30fb\u2027\u2219]")  # middle dot and look-alikes
 TOKEN = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_/*.\-]*")
 
 
@@ -35,12 +39,25 @@ def sections(text):
 
 
 def pairs(body):
-    lines = [l.strip() for l in body.splitlines() if l.strip().startswith(("- 전:", "- 후:"))]
-    out = []
-    for a, b in zip(lines[::2], lines[1::2]):
-        if not (a.startswith("- 전:") and b.startswith("- 후:")):
-            fail("unpaired example near: " + a[:40])
-        out.append((a[4:].strip(), b[4:].strip()))
+    """(before, after) for each '- 전:' line followed by a '- 후:' line; anything else fails."""
+    out, before = [], None
+    for line in (l.strip() for l in body.splitlines()):
+        if not line.startswith(("- 전:", "- 후:")):
+            continue
+        tag, rest = line[2], line[4:].strip()
+        if not rest:
+            fail("empty example: " + line)
+        if tag == "전":
+            if before is not None:
+                fail("unpaired example (no '- 후:'): " + before[:40])
+            before = rest
+        else:
+            if before is None:
+                fail("unpaired example (no '- 전:'): " + rest[:40])
+            out.append((before, rest))
+            before = None
+    if before is not None:
+        fail("unpaired example (no '- 후:'): " + before[:40])
     return out
 
 
@@ -104,5 +121,13 @@ elif mode == "meaning":
         if lost:
             fail("fix drops %s: %s" % (sorted(lost), b[:40]))
     print("ok meaning: %d fixes keep names, ids, paths and commands" % len(allpairs))
+elif mode == "middot":
+    # The app's writing rules forbid the middle dot; quoted originals ('- 전:') may keep it.
+    if not re.search(r"가운뎃점\S*\s*쓰지 않는다", text):
+        fail("skill does not say to avoid the middle dot")
+    for i, line in enumerate(text.splitlines(), 1):
+        if MIDDOT.search(line) and not line.strip().startswith("- 전:"):
+            fail("middle dot at SKILL.md:%d: %s" % (i, line.strip()[:40]))
+    print("ok middot: rules and %d fixes use none" % len(allpairs))
 else:
-    fail("usage: polish_skill_check.py frontmatter|start|list|particle|meaning")
+    fail("usage: polish_skill_check.py frontmatter|start|list|particle|meaning|middot [SKILL.md]")
