@@ -2,7 +2,7 @@
 
 Each mode exits 0 when the gap is still there, so the follow-up ticket's evidence stays checkable.
 
-    python3 tests/polish_gaps_check.py wrong-particle|dropped-fix|ci|middot
+    python3 tests/polish_gaps_check.py dropped-fix|ci|middot
 """
 import re
 import shutil
@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SKILL = ROOT / ".claude" / "skills" / "polish" / "SKILL.md"
 CHECK = ROOT / "tests" / "polish_skill_check.py"
+HELPER = ROOT / "tests" / "korean_particle.py"
 
 
 def fail(msg):
@@ -27,6 +28,7 @@ def run_mutated(mutate, modes):
         (t / ".claude" / "skills" / "polish").mkdir(parents=True)
         (t / "tests").mkdir()
         shutil.copy(CHECK, t / "tests" / CHECK.name)
+        shutil.copy(HELPER, t / "tests" / HELPER.name)
         text = SKILL.read_text(encoding="utf-8")
         new = mutate(text)
         if new == text:
@@ -43,13 +45,7 @@ def run_mutated(mutate, modes):
 mode = sys.argv[1] if len(sys.argv) > 1 else ""
 ALL = ["frontmatter", "start", "list", "particle", "meaning"]
 
-if mode == "wrong-particle":
-    # SKILL.md:60 'GOA-14를' -> 'GOA-14을' (14 reads 십사, no final consonant, so 을 is wrong).
-    ok = run_mutated(lambda s: s.replace("- 후: GOA-14를 마치고", "- 후: GOA-14을 마치고", 1), ALL)
-    if ok != ALL:
-        fail("gap closed: a wrong particle now fails " + str(sorted(set(ALL) - set(ok))))
-    print("gap: wrong particle 'GOA-14을' passes all five checks")
-elif mode == "dropped-fix":
+if mode == "dropped-fix":
     # Remove the last '- 후:' line (SKILL.md:69); zip() in pairs() drops the orphan '- 전:'.
     ok = run_mutated(lambda s: s.replace("- 후: GOA-23을 맡았습니다.\n", "", 1), ALL)
     if ok != ALL:
@@ -68,4 +64,4 @@ elif mode == "middot":
         fail("gap closed: skill no longer prescribes the middle dot")
     print("gap: SKILL.md:%d prescribes '·' and fixes at lines %s use it" % (rule[0], fixes))
 else:
-    fail("usage: polish_gaps_check.py wrong-particle|dropped-fix|ci|middot")
+    fail("usage: polish_gaps_check.py dropped-fix|ci|middot")

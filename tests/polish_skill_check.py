@@ -6,6 +6,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from korean_particle import attached, mismatches  # noqa: E402
+
 PATH = Path(__file__).resolve().parent.parent / ".claude" / "skills" / "polish" / "SKILL.md"
 STOCK = re.compile(r"가장 명확|가장 시급|완결된 작업|명확한 범위")
 PARTICLE = re.compile(r"을\(를\)|를\(을\)|이\(가\)|가\(이\)|은\(는\)|는\(은\)|와\(과\)|과\(와\)|\(으\)로")
@@ -87,7 +90,12 @@ elif mode == "particle":
     left = [b for _, b in allpairs if PARTICLE.search(b)]
     if left:
         fail("fix keeps an unresolved particle: " + left[0][:40])
-    print("ok particle: %d examples, %d fixes clean" % (len(ps), len(allpairs)))
+    wrong = [(b, m) for _, b in allpairs for m in mismatches(b)]
+    if wrong:
+        b, (token, got, want) = wrong[0]
+        fail("particle after %s should be %s, not %s: %s" % (token, want, got, b[:40]))
+    n = sum(len(attached(b)) for _, b in allpairs)
+    print("ok particle: %d examples, %d fixes clean, %d attached particles match" % (len(ps), len(allpairs), n))
 elif mode == "meaning":
     if len(allpairs) < 8:
         fail("only %d examples" % len(allpairs))
