@@ -427,6 +427,8 @@ Every merge into `preconquer-gogoymh` is benchmarked by [`scripts/bench_watch.py
 git show preconquer-gogoymh:scripts/bench_watch.py | python3 - --ref preconquer-gogoymh
 ```
 
+Competitor repos ([openclaw](https://github.com/openclaw/openclaw), [hermes-agent](https://github.com/NousResearch/hermes-agent) and the oh-my harnesses for Claude Code, Codex and OpenCode) are watched daily by [`scripts/scout_watch.py`](scripts/scout_watch.py). It writes `.git/goa-scout/digest.md` with every new release and feature commit, linked; the Preconquer workflow [`Competitor scout`](scripts/competitor-scout.workflow.json) hands it to an agent that files at most three non-duplicate suggested tickets, and skips the agent on a quiet day.
+
 The UI ships only permissively licensed packages (MIT, ISC); `node ui/scripts/license-check.mjs` fails the build otherwise.
 
 The banner is built by `scripts/make_banner.py` from Codex-generated art; candidates live in [`docs/assets/candidates`](docs/assets/candidates).
