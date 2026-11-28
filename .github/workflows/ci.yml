@@ -27,6 +27,10 @@ jobs:
       - run: python tests/deck_check.py count
       - run: python tests/deck_check.py korean
       - run: python tests/deck_check.py story
+      - run: python tests/readme_demo_check.py
+      - run: python tests/banner_check.py
+      - run: python tests/banner_check.py size
+      - run: python tests/banner_check.py light
   ui:
     runs-on: ubuntu-22.04
     steps:
